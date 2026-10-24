@@ -32,7 +32,11 @@ func (h *host) FitPanel(height int) {
 func (h *host) Quit() { h.app.Quit() }
 
 // Run starts the app and blocks until it quits.
-func Run(icon []byte) error {
+//
+// It sets no app icon: a menu bar extra shows it nowhere, and Wails
+// decodes the 1024px PNG into a bitmap that kept 32 MB, half the app's
+// memory. The Finder's icon is the .app bundle's job (build/icon).
+func Run() error {
 	sampler := stats.NewSampler(time.Second)
 	go sampler.Run()
 
@@ -40,7 +44,6 @@ func Run(icon []byte) error {
 	h.app = application.New(application.Options{
 		Name:        "Pulsewise",
 		Description: "CPU, GPU and memory in the menu bar",
-		Icon:        icon,
 		Assets:      application.AssetOptions{Handler: Handler(h, sampler)},
 		// a menu bar extra: no Dock icon, no Command-Tab
 		Mac:          application.MacOptions{ActivationPolicy: application.ActivationPolicyAccessory},
