@@ -17,3 +17,7 @@ go build -o bin/pulsewise .
 ./bin/pulsewise                       # menu bar app
 ./bin/pulsewise -web 127.0.0.1:8765   # the panel in a browser, for working on the page
 ```
+
+## License
+
+[MIT](LICENSE)
