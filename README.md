@@ -15,8 +15,7 @@
 <p align="center"><b>简体中文</b> · <a href="README.en.md">English</a></p>
 
 <p align="center">
-  <img src="docs/screenshots/panel-light.png" width="340" alt="浅色模式下的 Pulsewise 面板">
-  <img src="docs/screenshots/panel-dark.png" width="340" alt="深色模式下的 Pulsewise 面板">
+  <img src="docs/screenshots/panel-light.png" width="340" alt="Pulsewise 面板">
 </p>
 
 ## 特性

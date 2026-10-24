@@ -15,8 +15,7 @@
 <p align="center"><a href="README.md">简体中文</a> · <b>English</b></p>
 
 <p align="center">
-  <img src="docs/screenshots/panel-light.png" width="340" alt="The Pulsewise panel in light mode">
-  <img src="docs/screenshots/panel-dark.png" width="340" alt="The Pulsewise panel in dark mode">
+  <img src="docs/screenshots/panel-light.png" width="340" alt="The Pulsewise panel">
 </p>
 
 ## Features
