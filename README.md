@@ -14,6 +14,10 @@
 
 <p align="center"><b>简体中文</b> · <a href="README.en.md">English</a></p>
 
+<p align="center">
+  <img src="docs/screenshots/panel-light.png" width="340" alt="Pulsewise 面板">
+</p>
+
 ## 特性
 
 - **菜单栏三柱图标**：三根柱子分别对应 CPU、GPU、内存，每秒刷新；模板图标，自动适配深色与浅色菜单栏。悬停显示具体百分比。
@@ -42,19 +46,6 @@ go build -o bin/pulsewise .
 ```sh
 ./bin/pulsewise -web 127.0.0.1:8765
 ```
-
-## 工作原理
-
-采用与 [magpie](https://github.com/yetone/magpie) 相同的结构：Go + [Wails v3](https://v3alpha.wails.io/) 负责菜单栏图标和面板窗口；面板是一个不依赖框架、不需要打包的小网页，通过同一个 HTTP handler 上的 JSON API 读取 Go 端的数据。
-
-| 路径 | 作用 |
-| --- | --- |
-| `internal/stats` | 每秒通过 cgo 采样一次：Mach CPU ticks、`host_statistics64` 内存页、sysctl 交换区、IOKit `IOAccelerator` GPU 使用率。 |
-| `internal/gui/app.go` | 菜单栏图标（每次采样后重绘）与面板窗口。 |
-| `internal/gui/api.go` | 提供页面及接口：`GET /api/state`、`POST /api/fit`、`POST /api/quit`。 |
-| `internal/gui/trayicon.go` | 绘制 44px 的菜单栏模板 PNG。 |
-| `internal/gui/assets` | 面板页面（HTML / CSS / JS）。 |
-| `build/icon` | 应用图标（彩色版及两个单色版）。 |
 
 ## 许可证
 

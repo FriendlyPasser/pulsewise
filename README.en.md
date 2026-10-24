@@ -14,6 +14,10 @@
 
 <p align="center"><a href="README.md">简体中文</a> · <b>English</b></p>
 
+<p align="center">
+  <img src="docs/screenshots/panel-light.png" width="340" alt="The Pulsewise panel">
+</p>
+
 ## Features
 
 - **Three-bar menu bar icon**: one bar each for CPU, GPU and memory, refreshed every second. It is a template image, so it suits both dark and light menu bars. Hover for exact percentages.
@@ -44,19 +48,6 @@ To work on the panel page, serve it to a browser instead of the menu bar:
 ```sh
 ./bin/pulsewise -web 127.0.0.1:8765
 ```
-
-## How it works
-
-Built the way [magpie](https://github.com/yetone/magpie) is: Go + [Wails v3](https://v3alpha.wails.io/) for the menu bar icon and the panel window. The panel is one small web page, with no framework or bundler, that reads Go over a JSON API on the same HTTP handler.
-
-| Path | What |
-| --- | --- |
-| `internal/stats` | Samples once a second through cgo: Mach CPU ticks, `host_statistics64` memory pages, sysctl swap, IOKit `IOAccelerator` GPU utilization. |
-| `internal/gui/app.go` | The menu bar icon (redrawn after each sample) and the panel window. |
-| `internal/gui/api.go` | Serves the page; `GET /api/state`, `POST /api/fit`, `POST /api/quit`. |
-| `internal/gui/trayicon.go` | Draws the menu bar icon as a 44px template PNG. |
-| `internal/gui/assets` | The panel page (HTML / CSS / JS). |
-| `build/icon` | App icon (colour, plus two monochrome variants). |
 
 ## License
 
