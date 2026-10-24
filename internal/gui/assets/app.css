@@ -1,0 +1,157 @@
+/* The panel's two palettes come from the design's 下拉面板 (dark) and
+   下拉面板 · 浅色 (light) boards; the system's appearance picks one. */
+:root {
+  color-scheme: light dark;
+  --panel: #2B2C30;
+  --panel-edge: #45464C;
+  --panel-shadow: rgba(0, 0, 0, 0.35);
+  --card: #25262C;
+  --card-edge: #323338;
+  --text: #EDEDF1;
+  --muted: #9C9CA6;
+  --chip: #2E2F36;
+  --chip-edge: #45464C;
+  --track: #323338;
+  --wired: #8E8E96;
+  --compressed: #5C5D64;
+  --logo-ground: #FFFFFF;
+  --logo-edge: none;
+  --cpu: #5B9DFF;
+  --gpu: #F5A524;
+  --mem: #3CC8B4;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --panel: #F3F3F6;
+    --panel-edge: #DCDCE0;
+    --panel-shadow: rgba(0, 0, 0, 0.16);
+    --card: #FFFFFF;
+    --card-edge: #E6E6EA;
+    --text: #1C1C21;
+    --muted: #6E6E76;
+    --chip: #FFFFFF;
+    --chip-edge: #E0E0E0;
+    --track: #EDEDF0;
+    --wired: #9A9AA2;
+    --compressed: #C6C6CC;
+    --logo-edge: #D2D2D7;
+    --cpu: #2F6FDB;
+    --gpu: #B86A00;
+    --mem: #0F8A78;
+  }
+  .card .metric { border-color: #EDEDF0; }
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: default;
+}
+
+/* room around the card for its shadow; the window is that much larger
+   (panelShadow in app.go) */
+body {
+  padding: 2px 16px 30px;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", system-ui, sans-serif;
+  color: var(--text);
+}
+
+.panel {
+  width: 340px;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-radius: 14px;
+  box-shadow: 0 12px 32px var(--panel-shadow);
+  padding: 14px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.brand { display: flex; align-items: center; gap: 8px; padding: 0 4px; }
+.brand .name { font-size: 15px; font-weight: 600; }
+.logo-ground { fill: var(--logo-ground); stroke: var(--logo-edge); stroke-width: 16; }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--card-edge);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+.metric {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-bottom: 1px solid var(--card-edge);
+}
+.metric:last-child { border-bottom: 0; }
+.metric.cpu { --tone: var(--cpu); }
+.metric.gpu { --tone: var(--gpu); }
+.metric.mem { --tone: var(--mem); }
+
+.head { display: flex; justify-content: space-between; align-items: baseline; }
+.label { font-size: 14px; }
+.value {
+  font-size: 20px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--tone);
+}
+.value .of { font-size: 12px; font-weight: 400; color: var(--muted); }
+
+.spark { display: block; }
+.spark polyline {
+  fill: none;
+  stroke: var(--tone);
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+}
+
+.chips {
+  display: flex;
+  gap: 6px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.chips.wrap { flex-wrap: wrap; }
+.chip {
+  background: var(--chip);
+  border: 1px solid var(--chip-edge);
+  border-radius: 7px;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+.chip .k { color: var(--muted); }
+
+.meter {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--track);
+  display: flex;
+  overflow: hidden;
+}
+.seg { width: 0; transition: width 0.4s ease; }
+.seg.app { background: var(--mem); }
+.seg.wired { background: var(--wired); }
+.seg.compressed { background: var(--compressed); }
+
+.foot { display: flex; justify-content: flex-end; padding: 0 4px; }
+.quit {
+  height: 28px;
+  padding: 0 6px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  cursor: default;
+}
+.quit:hover { color: var(--text); }

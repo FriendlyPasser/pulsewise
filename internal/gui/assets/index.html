@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pulsewise</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<main class="panel">
+  <header class="brand">
+    <svg class="logo" width="20" height="20" viewBox="0 0 512 512" aria-hidden="true">
+      <rect class="logo-ground" x="4" y="4" width="504" height="504" rx="113"/>
+      <rect x="128" y="300" width="64" height="112" rx="16" fill="#B4B4BA"/>
+      <rect x="224" y="220" width="64" height="192" rx="16" fill="#B4B4BA"/>
+      <rect x="320" y="160" width="64" height="252" rx="16" fill="#B4B4BA"/>
+      <polyline points="84,290 176,290 206,214 248,372 290,150 322,290 428,290" fill="none" stroke="#FFFFFF" stroke-width="44" stroke-linejoin="round" stroke-linecap="round"/>
+      <polyline points="84,290 176,290 206,214 248,372 290,150 322,290 428,290" fill="none" stroke="#0E0E10" stroke-width="22" stroke-linejoin="round" stroke-linecap="round"/>
+    </svg>
+    <span class="name">Pulsewise</span>
+  </header>
+
+  <section class="card">
+    <div class="metric cpu">
+      <div class="head">
+        <span class="label">CPU</span>
+        <span class="value" id="cpuValue">–</span>
+      </div>
+      <svg class="spark" width="288" height="28" viewBox="0 0 288 28" aria-hidden="true"><polyline id="cpuSpark"/></svg>
+      <div class="chips">
+        <span class="chip"><span class="k">用户</span> <span id="cpuUser">–</span></span>
+        <span class="chip"><span class="k">系统</span> <span id="cpuSys">–</span></span>
+        <span class="chip"><span class="k">空闲</span> <span id="cpuIdle">–</span></span>
+      </div>
+    </div>
+
+    <div class="metric gpu">
+      <div class="head">
+        <span class="label">GPU</span>
+        <span class="value" id="gpuValue">–</span>
+      </div>
+      <svg class="spark" width="288" height="28" viewBox="0 0 288 28" aria-hidden="true"><polyline id="gpuSpark"/></svg>
+      <div class="chips">
+        <span class="chip"><span class="k">型号</span> <span id="gpuModel">–</span></span>
+        <span class="chip"><span class="k">核心</span> <span id="gpuCores">–</span></span>
+      </div>
+    </div>
+
+    <div class="metric mem">
+      <div class="head">
+        <span class="label">内存</span>
+        <span class="value"><span id="memUsed">–</span> <span class="of">/ <span id="memTotal">–</span> GB</span></span>
+      </div>
+      <div class="meter" aria-hidden="true">
+        <div class="seg app" id="memAppBar"></div>
+        <div class="seg wired" id="memWiredBar"></div>
+        <div class="seg compressed" id="memCompBar"></div>
+      </div>
+      <div class="chips wrap">
+        <span class="chip"><span class="k">App</span> <span id="memApp">–</span></span>
+        <span class="chip"><span class="k">联动</span> <span id="memWired">–</span></span>
+        <span class="chip"><span class="k">压缩</span> <span id="memComp">–</span></span>
+        <span class="chip"><span class="k">交换</span> <span id="memSwap">–</span></span>
+      </div>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <button type="button" class="quit" id="quit">退出</button>
+  </footer>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
