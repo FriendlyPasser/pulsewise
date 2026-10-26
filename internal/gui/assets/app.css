@@ -11,6 +11,7 @@
   --muted: #9C9CA6;
   --chip: #2E2F36;
   --chip-edge: #45464C;
+  --hover: #3A3B41;
   --track: #323338;
   --wired: #8E8E96;
   --compressed: #5C5D64;
@@ -32,6 +33,7 @@
     --muted: #6E6E76;
     --chip: #FFFFFF;
     --chip-edge: #E0E0E0;
+    --hover: #FFFFFF;
     --track: #EDEDF0;
     --wired: #9A9AA2;
     --compressed: #C6C6CC;
@@ -146,12 +148,13 @@ body {
 .foot { display: flex; justify-content: flex-end; padding: 0 4px; }
 .quit {
   height: 28px;
-  padding: 0 6px;
+  padding: 0 12px;
   border: 0;
+  border-radius: 7px;
   background: transparent;
   color: var(--muted);
   font: inherit;
   font-size: 13px;
   cursor: default;
 }
-.quit:hover { color: var(--text); }
+.quit:hover { color: var(--text); background: var(--hover); }
