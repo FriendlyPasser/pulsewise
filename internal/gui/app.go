@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/FriendlyPasser/pulsewise/internal/stats"
+	"github.com/FriendlyPasser/pulsewise/internal/update"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -23,6 +24,7 @@ type host struct {
 	app   *application.App
 	panel *application.WebviewWindow
 	tray  *application.SystemTray
+	upd   *update.Updater
 }
 
 func (h *host) FitPanel(height int) {
@@ -30,6 +32,16 @@ func (h *host) FitPanel(height int) {
 }
 
 func (h *host) Quit() { h.app.Quit() }
+
+// RestartToUpdate puts the downloaded version in and quits, for it to be
+// opened once this process is gone. When it can't, the app runs on.
+func (h *host) RestartToUpdate() error {
+	if err := h.upd.Restart(); err != nil {
+		return err
+	}
+	h.app.Quit()
+	return nil
+}
 
 // Run starts the app and blocks until it quits.
 //
@@ -40,11 +52,14 @@ func Run() error {
 	sampler := stats.NewSampler(time.Second)
 	go sampler.Run()
 
-	h := &host{}
+	h := &host{upd: update.New()}
 	h.app = application.New(application.Options{
 		Name:        "Pulsewise",
 		Description: "CPU, GPU and memory in the menu bar",
-		Assets:      application.AssetOptions{Handler: Handler(h, sampler)},
+		Assets:      application.AssetOptions{Handler: Handler(h, sampler, h.upd)},
+		// a version downloaded and not restarted into goes in on the way
+		// out, so the next launch is the new one
+		OnShutdown: h.upd.Quitting,
 		// a menu bar extra: no Dock icon, no Command-Tab
 		Mac:          application.MacOptions{ActivationPolicy: application.ActivationPolicyAccessory},
 		ErrorHandler: func(err error) { log.Println("pulsewise:", err) },
@@ -60,6 +75,10 @@ func Run() error {
 
 	// right-click: the menu (Wails' default with a window attached)
 	menu := h.app.NewMenu()
+	if h.upd.Status().State != update.Off {
+		menu.Add("检查更新").OnClick(func(*application.Context) { h.upd.Check() })
+		menu.AddSeparator()
+	}
 	menu.Add("退出 Pulsewise").OnClick(func(*application.Context) { h.app.Quit() })
 	h.tray.SetMenu(menu)
 
@@ -71,6 +90,7 @@ func Run() error {
 			h.tray.SetTooltip(tip)
 		})
 	})
+	h.upd.Start()
 	return h.app.Run()
 }
 
