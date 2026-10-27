@@ -78,7 +78,58 @@
       .then(function (r) { return r.json(); })
       .then(render)
       .catch(function () {});
+    fetch("/api/update", { cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(renderUpdate)
+      .catch(function () {});
   }
+
+  // the update's state (internal/update's Status), a pill at the header's
+  // right: what it does is the button's do; drawn again only when it
+  // changes, so a hover isn't lost each second
+  var shown = "";
+  function renderUpdate(u) {
+    var label = "", title = "", act = "", busy = false;
+    switch (u.state) {
+      case "downloading":
+        label = "下载中" + (u.total > 0 ? " " + Math.floor(u.done / u.total * 100) + "%" : "…");
+        busy = true;
+        break;
+      case "ready":
+        label = "更新";
+        act = "restart";
+        title = "重启以更新到 " + u.latest + (u.notes ? "\n\n" + u.notes : "");
+        break;
+      case "available":
+        label = "新版本";
+        act = "page";
+        title = (u.stuck === "translocated"
+          ? "先把 Pulsewise 移到“应用程序”文件夹，它才能自己更新"
+          : "Pulsewise 在只读的磁盘上，没法自己更新") + "\n下载 " + u.latest;
+        break;
+    }
+    var key = [label, title, act, busy].join("\n");
+    if (key === shown) return;
+    shown = key;
+    var el = $("update");
+    $("updateLabel").textContent = label;
+    el.title = title;
+    el.dataset.do = act;
+    el.classList.toggle("busy", busy);
+    el.hidden = label === "";
+  }
+
+  $("update").addEventListener("click", function () {
+    var el = $("update");
+    if (el.dataset.do === "restart") {
+      el.classList.add("busy");
+      $("updateLabel").textContent = "正在重启…";
+      // the app quits; if it couldn't, the next tick draws the pill again
+      post("/api/update/restart").then(function () { shown = ""; });
+    } else if (el.dataset.do === "page") {
+      post("/api/update/page");
+    }
+  });
 
   $("quit").addEventListener("click", function () { post("/api/quit"); });
 
