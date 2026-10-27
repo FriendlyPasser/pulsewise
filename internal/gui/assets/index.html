@@ -55,11 +55,9 @@
         <span class="label">内存</span>
         <span class="value"><span id="memUsed">–</span> <span class="of">/ <span id="memTotal">–</span> GB</span></span>
       </div>
-      <div class="meter" aria-hidden="true">
-        <div class="seg app" id="memAppBar"></div>
-        <div class="seg wired" id="memWiredBar"></div>
-        <div class="seg compressed" id="memCompBar"></div>
-      </div>
+      <svg class="area" width="288" height="40" viewBox="0 0 288 40" aria-hidden="true">
+        <g id="memArea"><path class="compressed" id="memCompArea"/><path class="wired" id="memWiredArea"/><path class="app" id="memAppArea"/></g>
+      </svg>
       <div class="chips wrap">
         <span class="chip"><span class="k">App</span> <span id="memApp">–</span></span>
         <span class="chip"><span class="k">联动</span> <span id="memWired">–</span></span>

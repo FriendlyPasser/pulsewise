@@ -26,8 +26,47 @@
     el.setAttribute("points", points.join(" "));
   }
 
-  function width(el, part, total) {
-    el.style.width = total > 0 ? (part / total * 100).toFixed(1) + "%" : "0";
+  // memory's stacked area, 288×40 with 0 at the foot and the total at the
+  // top. One more point than fits is drawn, the newest past the right
+  // edge; the group then slides a step left over the second, so each new
+  // sample glides in where the last one ended.
+  function area(history, total) {
+    var n = 17, step = 288 / (n - 2), H = 40;
+    var h = history.slice(-n);
+    while (h.length && h.length < n) h.unshift(h[0]);
+    if (!h.length || total <= 0) return;
+    var y = function (v) { return H - Math.min(v / total, 1) * H; };
+    var base = h.map(function () { return H; });
+    var app = h.map(function (p) { return y(p.app); });
+    var wired = h.map(function (p) { return y(p.app + p.wired); });
+    var comp = h.map(function (p) { return y(p.app + p.wired + p.compressed); });
+    $("memAppArea").setAttribute("d", band(app, base, step));
+    $("memWiredArea").setAttribute("d", band(wired, app, step));
+    $("memCompArea").setAttribute("d", band(comp, wired, step));
+
+    var g = $("memArea");
+    g.style.transition = "none";
+    g.style.transform = "translateX(0)";
+    g.getBoundingClientRect();
+    g.style.transition = "transform 1s linear";
+    g.style.transform = "translateX(" + (-step).toFixed(2) + "px)";
+  }
+
+  // the band between two curves, each drawn smooth through its points
+  function band(top, bottom, step) {
+    var pts = function (ys) { return ys.map(function (v, i) { return [i * step, v]; }); };
+    var back = pts(bottom).reverse();
+    return curve(pts(top), "M") + curve(back, "L") + "Z";
+  }
+
+  function curve(p, start) {
+    var d = start + p[0][0].toFixed(1) + "," + p[0][1].toFixed(1);
+    for (var i = 1; i < p.length; i++) {
+      var m = ((p[i - 1][0] + p[i][0]) / 2).toFixed(1);
+      d += "C" + m + "," + p[i - 1][1].toFixed(1) + " " + m + "," + p[i][1].toFixed(1) +
+        " " + p[i][0].toFixed(1) + "," + p[i][1].toFixed(1);
+    }
+    return d;
   }
 
   function render(s) {
@@ -46,9 +85,7 @@
 
     $("memUsed").textContent = (m.used / GB).toFixed(1);
     $("memTotal").textContent = String(Math.round(m.total / GB));
-    width($("memAppBar"), m.app, m.total);
-    width($("memWiredBar"), m.wired, m.total);
-    width($("memCompBar"), m.compressed, m.total);
+    area(m.history || [], m.total);
     $("memApp").textContent = size(m.app);
     $("memWired").textContent = size(m.wired);
     $("memComp").textContent = size(m.compressed);

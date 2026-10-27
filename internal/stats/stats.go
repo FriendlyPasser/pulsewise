@@ -33,6 +33,15 @@ type Memory struct {
 	Wired      uint64 `json:"wired"`
 	Compressed uint64 `json:"compressed"`
 	Swap       uint64 `json:"swap"`
+	// History is the last HistoryLen samples, for the stacked area chart.
+	History []MemPoint `json:"history"`
+}
+
+// MemPoint is one sample of Memory's three stacked layers, in bytes.
+type MemPoint struct {
+	App        uint64 `json:"app"`
+	Wired      uint64 `json:"wired"`
+	Compressed uint64 `json:"compressed"`
 }
 
 type Snapshot struct {
@@ -50,6 +59,7 @@ type Sampler struct {
 	snap    Snapshot
 	cpuHist []float64
 	gpuHist []float64
+	memHist []MemPoint
 	prev    ticks
 	subs    []func(Snapshot)
 }
@@ -100,7 +110,9 @@ func (s *Sampler) sample() {
 	s.cpuHist = push(s.cpuHist, cpu.Usage)
 	s.gpuHist = push(s.gpuHist, max(gpu.Usage, 0))
 	cpu.History = append([]float64(nil), s.cpuHist...)
+	s.memHist = push(s.memHist, MemPoint{mem.App, mem.Wired, mem.Compressed})
 	gpu.History = append([]float64(nil), s.gpuHist...)
+	mem.History = append([]MemPoint(nil), s.memHist...)
 	s.snap = Snapshot{CPU: cpu, GPU: gpu, Memory: mem, At: time.Now().UnixMilli()}
 	snap, subs := s.snap, append([]func(Snapshot){}, s.subs...)
 	s.mu.Unlock()
@@ -110,7 +122,8 @@ func (s *Sampler) sample() {
 	}
 }
 
-func push(h []float64, v float64) []float64 {
+// push appends v, dropping the oldest so h holds at most HistoryLen.
+func push[T any](h []T, v T) []T {
 	h = append(h, v)
 	if len(h) > HistoryLen {
 		h = h[len(h)-HistoryLen:]

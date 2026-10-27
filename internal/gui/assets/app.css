@@ -166,17 +166,17 @@ body {
 }
 .chip .k { color: var(--muted); }
 
-.meter {
-  height: 8px;
+/* memory's stacked area, App at the foot: it glides left a step a
+   second, the newest sample coming in from the right */
+.area {
+  display: block;
   border-radius: 4px;
   background: var(--track);
-  display: flex;
   overflow: hidden;
 }
-.seg { width: 0; transition: width 0.4s ease; }
-.seg.app { background: var(--mem); }
-.seg.wired { background: var(--wired); }
-.seg.compressed { background: var(--compressed); }
+.area .app { fill: var(--mem); }
+.area .wired { fill: var(--wired); }
+.area .compressed { fill: var(--compressed); }
 
 .foot { display: flex; justify-content: flex-end; padding: 0 4px; }
 
