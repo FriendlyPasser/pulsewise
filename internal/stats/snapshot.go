@@ -43,11 +43,27 @@ type MemPoint struct {
 	Compressed uint64 `json:"compressed"`
 }
 
+// Disk is the startup data volume's capacity in bytes. Total is zero when
+// unavailable. Used includes space unavailable to the current user.
+type Disk struct {
+	Total     uint64 `json:"total"`
+	Used      uint64 `json:"used"`
+	Available uint64 `json:"available"`
+}
+
+func (d Disk) Usage() float64 {
+	if d.Total == 0 {
+		return 0
+	}
+	return float64(d.Used) / float64(d.Total) * 100
+}
+
 // Snapshot is the shared read model for the tray and panel.
 type Snapshot struct {
 	CPU    CPU    `json:"cpu"`
 	GPU    GPU    `json:"gpu"`
 	Memory Memory `json:"memory"`
+	Disk   Disk   `json:"disk"`
 	At     int64  `json:"at"`
 }
 

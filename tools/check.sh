@@ -5,6 +5,7 @@ cd "$(dirname "$0")/.."
 go test -mod=readonly -race -timeout=60s ./...
 go vet -mod=readonly ./...
 node --check internal/panel/assets/app.js
+node tools/check_panel.js
 
 check_dir=$(mktemp -d "${TMPDIR:-/tmp}/pulsewise-check.XXXXXX")
 trap 'rm -rf "$check_dir"' EXIT HUP INT TERM

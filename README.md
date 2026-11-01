@@ -4,7 +4,7 @@
 
 <h1 align="center">Pulsewise</h1>
 
-<p align="center">把 Mac 的 CPU、GPU 和内存放进菜单栏，一眼看清，一点即开。</p>
+<p align="center">把 Mac 的 CPU、GPU、内存和硬盘容量放进菜单栏，一眼看清，一点即开。</p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/platform-macOS-lightgrey" alt="macOS">
@@ -25,6 +25,7 @@
   - CPU：用户 / 系统 / 空闲占比
   - GPU：使用率、型号、核心数
   - 内存：按“活动监视器”的口径拆分为 App、联动、压缩，另列交换
+  - 硬盘：系统磁盘的已用、可用、总容量和使用率，每秒刷新；使用率达到 90% 时容量条变为警示色，悬停菜单栏图标也可查看使用率
 - **不打扰**：没有 Dock 图标，不进 ⌘Tab；面板不抢焦点，失焦或按 Esc 自动收起，在任意桌面和全屏应用上都能打开。
 - **轻量、免权限**：直接调用系统接口采样，无需 root，也没有后台服务。
 

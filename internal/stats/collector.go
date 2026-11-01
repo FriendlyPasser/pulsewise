@@ -11,7 +11,7 @@ func newSystemReader() func() Snapshot {
 			cpu = cpuBetween(prev, now)
 			prev = now
 		}
-		return Snapshot{CPU: cpu, GPU: readGPU(), Memory: readMemory()}
+		return Snapshot{CPU: cpu, GPU: readGPU(), Memory: readMemory(), Disk: readDisk()}
 	}
 }
 

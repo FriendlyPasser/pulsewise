@@ -1,4 +1,4 @@
-// Pulsewise shows the Mac's CPU, GPU and memory in the menu bar.
+// Pulsewise shows the Mac's CPU, GPU, memory and disk capacity in the menu bar.
 package main
 
 import (

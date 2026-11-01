@@ -4,7 +4,7 @@
 
 <h1 align="center">Pulsewise</h1>
 
-<p align="center">Your Mac's CPU, GPU and memory in the menu bar: readable at a glance, one click for the details.</p>
+<p align="center">Your Mac's CPU, GPU, memory and disk capacity in the menu bar: readable at a glance, one click for the details.</p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/platform-macOS-lightgrey" alt="macOS">
@@ -25,6 +25,7 @@
   - CPU: user / system / idle
   - GPU: utilization, model, core count
   - Memory: split the way Activity Monitor splits it (App, wired, compressed), plus swap
+  - Disk: startup disk used, available and total capacity, plus usage, refreshed every second. The capacity bar warns at 90% usage. Hover over the menu bar icon to see disk usage too.
 - **Stays out of the way**: no Dock icon, not in ⌘Tab. The panel doesn't take focus, hides when it loses focus or on Esc, and opens on any Space, including over full-screen apps.
 - **Light, no permissions**: samples through system APIs directly. No root, no background service.
 
