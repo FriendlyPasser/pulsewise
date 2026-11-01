@@ -49,6 +49,16 @@ To work on the panel page, serve it to a browser instead of the menu bar:
 ./bin/pulsewise -web 127.0.0.1:8765
 ```
 
+## Development
+
+The [architecture notes](docs/architecture.md), in Chinese, describe module ownership, dependency rules, and concurrency contracts.
+
+Run the checks with Node.js and Python 3 installed:
+
+```sh
+sh tools/check.sh
+```
+
 ## License
 
 [MIT](LICENSE)
