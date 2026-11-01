@@ -10,8 +10,8 @@ import (
 	"time"
 )
 
-// Every is how often the feed is asked by itself.
-const Every = 6 * time.Hour
+// Every is the interval between automatic update checks.
+const Every = time.Minute
 
 // State is where an update stands, as the panel shows it.
 type State string
@@ -56,7 +56,6 @@ type Updater struct {
 	staged string
 	done   int64
 	total  int64
-	asked  time.Time
 }
 
 // New ties checks and downloads to the application's context. The updater is
@@ -76,8 +75,7 @@ func New(ctx context.Context) *Updater {
 }
 
 // Run checks after five seconds and then every Every, until the application's
-// context is canceled. It compares wall time each minute so a Mac asleep
-// through the interval checks when it wakes.
+// context is canceled. Missed ticks are dropped instead of replayed after sleep.
 func (u *Updater) Run() {
 	if u.Status().State == Off {
 		return
@@ -89,15 +87,10 @@ func (u *Updater) Run() {
 		return
 	case <-delay.C:
 	}
-	tick := time.NewTicker(time.Minute)
+	tick := time.NewTicker(Every)
 	defer tick.Stop()
 	for {
-		u.mu.Lock()
-		due := time.Now().Round(0).Sub(u.asked) >= Every
-		u.mu.Unlock()
-		if due {
-			u.Check()
-		}
+		u.Check()
 		select {
 		case <-u.ctx.Done():
 			return
@@ -114,7 +107,7 @@ func (u *Updater) Check() {
 		u.mu.Unlock()
 		return
 	}
-	u.state, u.err, u.asked = Checking, "", time.Now().Round(0)
+	u.state, u.err = Checking, ""
 	u.mu.Unlock()
 	go u.run()
 }
