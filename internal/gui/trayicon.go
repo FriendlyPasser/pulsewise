@@ -8,32 +8,33 @@ import (
 	"math"
 )
 
-// The menu bar icon is the design's style A, "三柱": three bars for CPU,
-// GPU and memory, each a track with its level filled from the bottom. It
-// is a template image (black with alpha), so the Mac tints it for a dark
-// or light menu bar, as the design asks.
+// The menu bar icon has four bars for CPU, GPU, memory and disk capacity.
+// Each bar fills from the bottom. The template image uses black with alpha,
+// so macOS can tint it for light and dark menu bars.
 //
 // Wails sizes a tray image to the bar's thickness (22pt), square, so the
 // canvas is 22pt at 2x and the icon sits in its middle 16pt, as in the
 // design's 28px-tall bar.
 const (
-	trayCanvas = 44   // px: 22pt at 2x
-	trayIcon   = 32.0 // px: 16pt at 2x
-	trayUnit   = trayIcon / 14
-	trayInset  = (trayCanvas - trayIcon) / 2
-	trackAlpha = 0.28 // the track, as #48484E on #1B1B1E reads
+	trayCanvas   = 44   // px: 22pt at 2x
+	trayIcon     = 32.0 // px: 16pt at 2x
+	trayUnit     = trayIcon / 14
+	trayInset    = (trayCanvas - trayIcon) / 2
+	trayBarWidth = 2.25
+	trayBarGap   = 1.0
+	trackAlpha   = 0.28 // the track, as #48484E on #1B1B1E reads
 )
 
-// trayPNG draws the three bars at cpu, gpu and mem, each 0–100.
-func trayPNG(cpu, gpu, mem float64) []byte {
+// trayPNG draws CPU, GPU, memory and disk usage from left to right, each 0–100.
+func trayPNG(cpu, gpu, mem, disk float64) []byte {
 	img := image.NewNRGBA(image.Rect(0, 0, trayCanvas, trayCanvas))
-	for i, v := range []float64{cpu, gpu, mem} {
-		x := 1 + 4.5*float64(i) // the design's bars at x = 1, 5.5, 10, 3 wide
+	for i, v := range []float64{cpu, gpu, mem, disk} {
+		x := 1 + (trayBarWidth+trayBarGap)*float64(i)
 		level := 12 * clamp(v, 0, 100) / 100
 		// a sliver so an idle bar still shows it is a bar
 		level = math.Max(level, 1.2)
-		bar(img, x, 1, 3, 12, trackAlpha)
-		bar(img, x, 13-level, 3, level, 1)
+		bar(img, x, 1, trayBarWidth, 12, trackAlpha)
+		bar(img, x, 13-level, trayBarWidth, level, 1)
 	}
 	var b bytes.Buffer
 	_ = png.Encode(&b, img)
