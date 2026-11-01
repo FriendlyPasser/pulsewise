@@ -109,8 +109,6 @@ import (
 	"unsafe"
 )
 
-type ticks struct{ user, sys, idle uint64 }
-
 func readTicks() (ticks, bool) {
 	var u, s, i, n C.ulonglong
 	if C.cpu_ticks(&u, &s, &i, &n) != 0 {

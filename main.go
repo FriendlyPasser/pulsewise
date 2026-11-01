@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/FriendlyPasser/pulsewise/internal/gui"
+	"github.com/FriendlyPasser/pulsewise/internal/web"
 )
 
 func main() {
@@ -13,7 +14,7 @@ func main() {
 	flag.Parse()
 	run := func() error { return gui.Run() }
 	if *webAddr != "" {
-		run = func() error { return gui.ServeWeb(*webAddr) }
+		run = func() error { return web.Serve(*webAddr) }
 	}
 	if err := run(); err != nil {
 		log.Fatal(err)

@@ -44,70 +44,73 @@ type Status struct {
 // and every Every, downloads a newer release straight away, and leaves it
 // staged for Restart, or for Quit to put in.
 type Updater struct {
+	ctx     context.Context
 	bundle  string
 	current string
 	stuck   string
 
-	mu      sync.Mutex
-	state   State
-	latest  *Release
-	err     string
-	staged  string
-	done    int64
-	total   int64
-	asked   time.Time
-	onReady func(version string)
+	mu     sync.Mutex
+	state  State
+	latest *Release
+	err    string
+	staged string
+	done   int64
+	total  int64
+	asked  time.Time
 }
 
-// New is the updater of the running app. It is Off when the app isn't a
-// release: not in a bundle, or with no version or signing team.
-func New() *Updater {
-	u := &Updater{state: Off}
+// New ties checks and downloads to the application's context. The updater is
+// Off outside a bundle, or when the app has no version or signing team.
+func New(ctx context.Context) *Updater {
+	u := &Updater{ctx: ctx, state: Off}
 	b := Bundle()
 	if b == "" {
 		return u
 	}
 	v := Version(b)
-	if parse(v) == nil || Team(context.Background(), b) == "" {
+	if parse(v) == nil || Team(ctx, b) == "" {
 		return u
 	}
 	u.bundle, u.current, u.stuck, u.state = b, v, Stuck(b), Idle
 	return u
 }
 
-// OnReady has f called, on its own goroutine, when a version is staged.
-func (u *Updater) OnReady(f func(version string)) {
-	u.mu.Lock()
-	u.onReady = f
-	u.mu.Unlock()
-}
-
-// Start checks a few seconds from now and then every Every. The clock is
-// the wall's, looked at each minute, so a Mac asleep through the interval
-// checks when it wakes.
-func (u *Updater) Start() {
-	if u.state == Off {
+// Run checks after five seconds and then every Every, until the application's
+// context is canceled. It compares wall time each minute so a Mac asleep
+// through the interval checks when it wakes.
+func (u *Updater) Run() {
+	if u.Status().State == Off {
 		return
 	}
-	go func() {
-		time.Sleep(5 * time.Second)
-		for {
-			u.mu.Lock()
-			due := time.Now().Round(0).Sub(u.asked) >= Every
-			u.mu.Unlock()
-			if due {
-				u.Check()
-			}
-			time.Sleep(time.Minute)
+	delay := time.NewTimer(5 * time.Second)
+	defer delay.Stop()
+	select {
+	case <-u.ctx.Done():
+		return
+	case <-delay.C:
+	}
+	tick := time.NewTicker(time.Minute)
+	defer tick.Stop()
+	for {
+		u.mu.Lock()
+		due := time.Now().Round(0).Sub(u.asked) >= Every
+		u.mu.Unlock()
+		if due {
+			u.Check()
 		}
-	}()
+		select {
+		case <-u.ctx.Done():
+			return
+		case <-tick.C:
+		}
+	}
 }
 
 // Check asks the feed now, unless a check or a download is under way, and
 // downloads what is newer. It returns at once.
 func (u *Updater) Check() {
 	u.mu.Lock()
-	if u.state == Off || u.state == Checking || u.state == Downloading {
+	if u.state == Off || u.state == Checking || u.state == Downloading || u.ctx.Err() != nil {
 		u.mu.Unlock()
 		return
 	}
@@ -117,7 +120,7 @@ func (u *Updater) Check() {
 }
 
 func (u *Updater) run() {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	ctx, cancel := context.WithTimeout(u.ctx, 10*time.Minute)
 	defer cancel()
 	rel, err := Latest(ctx)
 
@@ -155,9 +158,6 @@ func (u *Updater) run() {
 		return
 	}
 	u.state, u.staged = Ready, staged
-	if u.onReady != nil {
-		go u.onReady(rel.Version)
-	}
 }
 
 // Status is where the updater stands.

@@ -1,14 +1,13 @@
-// Package gui is the menu bar app: a tray icon that draws the machine's
-// load, and a panel dropped under it. The panel is a small web page served
-// from embedded assets, which reads Go over a JSON API on the same handler
-// (no binding generator, no bundler), as magpie's is.
+// Package gui hosts the native menu bar, panel window, and application lifecycle.
 package gui
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"time"
 
+	"github.com/FriendlyPasser/pulsewise/internal/panel"
 	"github.com/FriendlyPasser/pulsewise/internal/stats"
 	"github.com/FriendlyPasser/pulsewise/internal/update"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -23,8 +22,6 @@ const (
 type host struct {
 	app   *application.App
 	panel *application.WebviewWindow
-	tray  *application.SystemTray
-	upd   *update.Updater
 }
 
 func (h *host) FitPanel(height int) {
@@ -33,33 +30,28 @@ func (h *host) FitPanel(height int) {
 
 func (h *host) Quit() { h.app.Quit() }
 
-// RestartToUpdate puts the downloaded version in and quits, for it to be
-// opened once this process is gone. When it can't, the app runs on.
-func (h *host) RestartToUpdate() error {
-	if err := h.upd.Restart(); err != nil {
-		return err
-	}
-	h.app.Quit()
-	return nil
-}
-
 // Run starts the app and blocks until it quits.
 //
 // It sets no app icon: a menu bar extra shows it nowhere, and Wails
 // decodes the 1024px PNG into a bitmap that kept 32 MB, half the app's
 // memory. The Finder's icon is the .app bundle's job (build/icon).
 func Run() error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	sampler := stats.NewSampler(time.Second)
-	go sampler.Run()
+	updater := update.New(ctx)
 
-	h := &host{upd: update.New()}
+	h := &host{}
 	h.app = application.New(application.Options{
 		Name:        "Pulsewise",
 		Description: "CPU, GPU and memory in the menu bar",
-		Assets:      application.AssetOptions{Handler: Handler(h, sampler, h.upd)},
+		Assets:      application.AssetOptions{Handler: panel.Handler(h, sampler, updater)},
 		// a version downloaded and not restarted into goes in on the way
 		// out, so the next launch is the new one
-		OnShutdown: h.upd.Quitting,
+		OnShutdown: func() {
+			cancel()
+			updater.Quitting()
+		},
 		// a menu bar extra: no Dock icon, no Command-Tab
 		Mac:          application.MacOptions{ActivationPolicy: application.ActivationPolicyAccessory},
 		ErrorHandler: func(err error) { log.Println("pulsewise:", err) },
@@ -67,47 +59,43 @@ func Run() error {
 
 	h.panel = h.app.Window.NewWithOptions(panelOptions())
 
-	h.tray = h.app.SystemTray.New()
-	h.tray.SetTooltip("Pulsewise")
-	snap := sampler.Latest()
-	h.tray.SetTemplateIcon(iconOf(snap))
-	h.tray.AttachWindow(h.panel).WindowOffset(6)
+	tray := h.app.SystemTray.New()
+	samples := sampler.Subscribe(ctx)
+	snap := <-samples
+	tray.SetTooltip(tooltipOf(snap))
+	tray.SetTemplateIcon(iconOf(snap))
+	tray.AttachWindow(h.panel).WindowOffset(6)
 
 	// right-click: the menu (Wails' default with a window attached)
 	menu := h.app.NewMenu()
-	if h.upd.Status().State != update.Off {
-		menu.Add("检查更新").OnClick(func(*application.Context) { h.upd.Check() })
+	if updater.Status().State != update.Off {
+		menu.Add("检查更新").OnClick(func(*application.Context) { updater.Check() })
 		menu.AddSeparator()
 	}
 	menu.Add("退出 Pulsewise").OnClick(func(*application.Context) { h.app.Quit() })
-	h.tray.SetMenu(menu)
+	tray.SetMenu(menu)
 
-	sampler.OnSample(func(s stats.Snapshot) {
-		png := iconOf(s)
-		tip := tooltipOf(s)
-		application.InvokeAsync(func() {
-			h.tray.SetTemplateIcon(png)
-			h.tray.SetTooltip(tip)
-		})
-	})
-	h.upd.Start()
+	go sampler.Run(ctx)
+	go func() {
+		for s := range samples {
+			png := iconOf(s)
+			tip := tooltipOf(s)
+			application.InvokeAsync(func() {
+				tray.SetTemplateIcon(png)
+				tray.SetTooltip(tip)
+			})
+		}
+	}()
+	go updater.Run()
 	return h.app.Run()
 }
 
 func iconOf(s stats.Snapshot) []byte {
-	mem := 0.0
-	if s.Memory.Total > 0 {
-		mem = float64(s.Memory.Used) / float64(s.Memory.Total) * 100
-	}
-	return trayPNG(s.CPU.Usage, max(s.GPU.Usage, 0), mem)
+	return trayPNG(s.CPU.Usage, max(s.GPU.Usage, 0), s.Memory.Usage())
 }
 
 func tooltipOf(s stats.Snapshot) string {
-	mem := 0.0
-	if s.Memory.Total > 0 {
-		mem = float64(s.Memory.Used) / float64(s.Memory.Total) * 100
-	}
-	return fmt.Sprintf("CPU %.0f%%，GPU %.0f%%，内存 %.0f%%", s.CPU.Usage, max(s.GPU.Usage, 0), mem)
+	return fmt.Sprintf("CPU %.0f%%，GPU %.0f%%，内存 %.0f%%", s.CPU.Usage, max(s.GPU.Usage, 0), s.Memory.Usage())
 }
 
 // panelOptions is the dropdown: frameless, see-through so the page draws

@@ -47,6 +47,16 @@ go build -o bin/pulsewise .
 ./bin/pulsewise -web 127.0.0.1:8765
 ```
 
+## 开发
+
+[架构说明](docs/architecture.md)介绍模块职责、依赖方向和并发约定。
+
+运行完整检查需要 Node.js 和 Python 3：
+
+```sh
+sh tools/check.sh
+```
+
 ## 许可证
 
 [MIT](LICENSE)

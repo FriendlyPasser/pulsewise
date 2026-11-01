@@ -227,12 +227,12 @@ func TestRelaunchScriptRuns(t *testing.T) {
 }
 
 func TestUpdaterOffOutsideBundle(t *testing.T) {
-	u := New() // the test binary is in no bundle
+	u := New(context.Background()) // the test binary is in no bundle
 	if s := u.Status(); s.State != Off {
 		t.Errorf("state %q", s.State)
 	}
 	u.Check()
-	u.Start()
+	u.Run()
 	if s := u.Status(); s.State != Off {
 		t.Errorf("after Check: %q", s.State)
 	}
