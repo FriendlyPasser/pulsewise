@@ -14,6 +14,32 @@
     return Math.round(bytes / MB) + " MB";
   }
 
+  // Disk capacities use decimal units, as macOS storage settings do.
+  function diskSize(bytes) {
+    if (bytes >= 1e12) return (bytes / 1e12).toFixed(2) + " TB";
+    if (bytes >= 1e9) return (bytes / 1e9).toFixed(1) + " GB";
+    return Math.round(bytes / 1e6) + " MB";
+  }
+
+  function renderDisk(d) {
+    var available = d.total > 0;
+    var usage = available ? Math.max(0, Math.min(100, d.used / d.total * 100)) : 0;
+    $("diskValue").textContent = available ? pct(usage) : "–";
+    $("diskUsed").textContent = available ? diskSize(d.used) : "–";
+    $("diskTotal").textContent = available ? diskSize(d.total) : "–";
+    $("diskAvailable").textContent = available ? diskSize(d.available) : "–";
+    $("diskFill").style.width = usage + "%";
+    var meter = $("diskMeter");
+    meter.classList.toggle("low-space", available && usage >= 90);
+    if (available) {
+      meter.setAttribute("aria-valuenow", usage.toFixed(1));
+      meter.setAttribute("aria-valuetext", "已用 " + pct(usage) + "，可用 " + diskSize(d.available));
+    } else {
+      meter.removeAttribute("aria-valuenow");
+      meter.setAttribute("aria-valuetext", "容量暂不可用");
+    }
+  }
+
   // the design's sparkline: 288×28, its points spaced evenly, a level of
   // 100% near the top and 0% near the foot
   function spark(el, history) {
@@ -91,6 +117,7 @@
     $("memComp").textContent = size(m.compressed);
     $("memSwap").textContent = size(m.swap);
 
+    renderDisk(s.disk);
     fit();
   }
 

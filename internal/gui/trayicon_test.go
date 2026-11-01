@@ -3,8 +3,21 @@ package gui
 import (
 	"bytes"
 	"image/png"
+	"strings"
 	"testing"
+
+	"github.com/FriendlyPasser/pulsewise/internal/stats"
 )
+
+func TestTooltipShowsDiskCapacity(t *testing.T) {
+	snap := stats.Snapshot{Disk: stats.Disk{Total: 1000, Used: 750, Available: 250}}
+	if tip := tooltipOf(snap); !strings.HasSuffix(tip, "硬盘 75%") {
+		t.Fatalf("tooltip = %q", tip)
+	}
+	if tip := tooltipOf(stats.Snapshot{}); !strings.HasSuffix(tip, "硬盘 不可用") {
+		t.Fatalf("unavailable tooltip = %q", tip)
+	}
+}
 
 func TestTrayPNG(t *testing.T) {
 	img, err := png.Decode(bytes.NewReader(trayPNG(23, 41, 62)))

@@ -1,6 +1,7 @@
 """Exercise the real browser host, API, embedded assets, sampling, and shutdown."""
 
 import json
+import os
 import re
 import subprocess
 import sys
@@ -49,6 +50,23 @@ def check(binary):
             for key in ("cpu", "gpu", "memory"):
                 assert 1 <= len(first[key]["history"]) <= 17
 
+            def check_disk(state):
+                disk = state["disk"]
+                assert disk["total"] > 0, "system disk capacity is unavailable"
+                assert 0 <= disk["available"] <= disk["total"]
+                assert disk["used"] == disk["total"] - disk["available"]
+                # Compare the API with an independent OS read. Allow space to
+                # change while the two calls run, for example during a download.
+                try:
+                    capacity = os.statvfs("/System/Volumes/Data")
+                except FileNotFoundError:
+                    capacity = os.statvfs("/")
+                assert disk["total"] == capacity.f_blocks * capacity.f_frsize
+                available = capacity.f_bavail * capacity.f_frsize
+                assert abs(disk["available"] - available) < 256 * 1024 * 1024
+
+            check_disk(first)
+
             deadline = time.monotonic() + 4
             while time.monotonic() < deadline:
                 latest = snapshot()
@@ -57,6 +75,7 @@ def check(binary):
                 time.sleep(0.05)
             else:
                 raise AssertionError("the sampler did not publish a new snapshot")
+            check_disk(latest)
 
             with request("/api/update") as response:
                 assert json.load(response)["state"] == "off"
@@ -65,7 +84,11 @@ def check(binary):
                 ("/app.css", b"--panel"),
             ):
                 with request(path) as response:
-                    assert expected in response.read(), path
+                    asset = response.read()
+                    assert expected in asset, path
+                    if path == "/":
+                        assert b'diskValue' in asset
+                        assert b'diskMeter' in asset
             with request("/api/fit", {"height": 440}) as response:
                 assert response.status == 204
             try:
@@ -77,7 +100,7 @@ def check(binary):
             with request("/api/quit", {}) as response:
                 assert response.status == 204
             assert process.wait(timeout=5) == 0
-            print("Browser smoke check passed: live samples, assets, API, and quit.")
+            print("Browser smoke check passed: live samples, disk capacity matches OS, assets, API, and quit.")
         except BaseException:
             log.seek(0)
             print(log.read(), file=sys.stderr)

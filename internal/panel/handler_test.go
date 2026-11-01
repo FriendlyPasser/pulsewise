@@ -50,6 +50,7 @@ func TestStateContract(t *testing.T) {
 	want := stats.Snapshot{
 		CPU: stats.CPU{Usage: 32, History: []float64{21, 32}},
 		GPU: stats.GPU{Usage: -1}, Memory: stats.Memory{Total: 1024, Used: 512}, At: 1234,
+		Disk: stats.Disk{Total: 1000, Used: 750, Available: 250},
 	}
 	h := Handler(&testHost{}, fixedSnapshots{want}, nil)
 	rw := request(h, "GET", "/api/state", "")

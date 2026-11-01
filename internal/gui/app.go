@@ -44,7 +44,7 @@ func Run() error {
 	h := &host{}
 	h.app = application.New(application.Options{
 		Name:        "Pulsewise",
-		Description: "CPU, GPU and memory in the menu bar",
+		Description: "CPU, GPU, memory and disk capacity in the menu bar",
 		Assets:      application.AssetOptions{Handler: panel.Handler(h, sampler, updater)},
 		// a version downloaded and not restarted into goes in on the way
 		// out, so the next launch is the new one
@@ -95,7 +95,11 @@ func iconOf(s stats.Snapshot) []byte {
 }
 
 func tooltipOf(s stats.Snapshot) string {
-	return fmt.Sprintf("CPU %.0f%%，GPU %.0f%%，内存 %.0f%%", s.CPU.Usage, max(s.GPU.Usage, 0), s.Memory.Usage())
+	disk := "不可用"
+	if s.Disk.Total > 0 {
+		disk = fmt.Sprintf("%.0f%%", s.Disk.Usage())
+	}
+	return fmt.Sprintf("CPU %.0f%%，GPU %.0f%%，内存 %.0f%%，硬盘 %s", s.CPU.Usage, max(s.GPU.Usage, 0), s.Memory.Usage(), disk)
 }
 
 // panelOptions is the dropdown: frameless, see-through so the page draws
