@@ -3,7 +3,6 @@ package gui
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"time"
 
@@ -40,6 +39,14 @@ func Run() error {
 	defer cancel()
 	sampler := stats.NewSampler(time.Second)
 	updater := update.New(ctx)
+	selected := defaultTrayMetrics
+	preferencesPath, err := trayPreferencesPath()
+	if err == nil {
+		selected, err = loadTrayMetrics(preferencesPath)
+	}
+	if err != nil {
+		log.Println("pulsewise: tray preferences:", err)
+	}
 
 	h := &host{}
 	h.app = application.New(application.Options{
@@ -60,14 +67,45 @@ func Run() error {
 	h.panel = h.app.Window.NewWithOptions(panelOptions())
 
 	tray := h.app.SystemTray.New()
+	// After startup, selection and rendering are owned by the native UI thread.
+	refreshTray := func(s stats.Snapshot) {
+		icon, tip := trayPresentation(s, selected)
+		tray.SetTemplateIcon(icon)
+		tray.SetTooltip(tip)
+	}
 	samples := sampler.Subscribe(ctx)
 	snap := <-samples
-	tray.SetTooltip(tooltipOf(snap))
-	tray.SetTemplateIcon(iconOf(snap))
+	refreshTray(snap)
 	tray.AttachWindow(h.panel).WindowOffset(6)
 
 	// right-click: the menu (Wails' default with a window attached)
 	menu := h.app.NewMenu()
+	display := menu.AddSubmenu("菜单栏显示")
+	items := make(map[trayMetrics]*application.MenuItem, len(trayOptions))
+	applySelection := func(next trayMetrics) {
+		if err := saveTrayMetrics(preferencesPath, next); err != nil {
+			log.Println("pulsewise: save tray preferences:", err)
+			syncTrayMenu(items, selected)
+			h.app.Dialog.Error().SetTitle("无法保存显示设置").SetMessage("显示设置未保存，请稍后重试。").Show()
+			return
+		}
+		selected = next
+		syncTrayMenu(items, selected)
+		refreshTray(sampler.Latest())
+	}
+	for _, option := range trayOptions {
+		items[option.metric] = display.AddCheckbox(option.label, selected&option.metric != 0).
+			OnClick(func(*application.Context) {
+				application.InvokeAsync(func() { applySelection(selected.toggle(option.metric)) })
+			})
+	}
+	display.AddSeparator()
+	display.Add("至少保留一项").SetEnabled(false)
+	display.Add("恢复默认").OnClick(func(*application.Context) {
+		application.InvokeAsync(func() { applySelection(defaultTrayMetrics) })
+	})
+	syncTrayMenu(items, selected)
+	menu.AddSeparator()
 	if updater.Status().State != update.Off {
 		menu.Add("检查更新").OnClick(func(*application.Context) { updater.Check() })
 		menu.AddSeparator()
@@ -78,28 +116,18 @@ func Run() error {
 	go sampler.Run(ctx)
 	go func() {
 		for s := range samples {
-			png := iconOf(s)
-			tip := tooltipOf(s)
-			application.InvokeAsync(func() {
-				tray.SetTemplateIcon(png)
-				tray.SetTooltip(tip)
-			})
+			application.InvokeAsync(func() { refreshTray(s) })
 		}
 	}()
 	go updater.Run()
 	return h.app.Run()
 }
 
-func iconOf(s stats.Snapshot) []byte {
-	return trayPNG(s.CPU.Usage, max(s.GPU.Usage, 0), s.Memory.Usage(), s.Disk.Usage())
-}
-
-func tooltipOf(s stats.Snapshot) string {
-	disk := "不可用"
-	if s.Disk.Total > 0 {
-		disk = fmt.Sprintf("%.0f%%", s.Disk.Usage())
+func syncTrayMenu(items map[trayMetrics]*application.MenuItem, selected trayMetrics) {
+	for _, option := range trayOptions {
+		checked := selected&option.metric != 0
+		items[option.metric].SetChecked(checked).SetEnabled(selected != option.metric)
 	}
-	return fmt.Sprintf("CPU %.0f%%，GPU %.0f%%，内存 %.0f%%，硬盘 %s", s.CPU.Usage, max(s.GPU.Usage, 0), s.Memory.Usage(), disk)
 }
 
 // panelOptions is the dropdown: frameless, see-through so the page draws
