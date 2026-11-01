@@ -2,13 +2,17 @@ package gui
 
 import (
 	"bytes"
+	"fmt"
 	"image"
 	"image/color"
 	"image/png"
 	"math"
+	"strings"
+
+	"github.com/FriendlyPasser/pulsewise/internal/stats"
 )
 
-// The menu bar icon has four bars for CPU, GPU, memory and disk capacity.
+// The menu bar icon shows the selected CPU, GPU, memory and disk metrics.
 // Each bar fills from the bottom. The template image uses black with alpha,
 // so macOS can tint it for light and dark menu bars.
 //
@@ -16,25 +20,48 @@ import (
 // canvas is 22pt at 2x and the icon sits in its middle 16pt, as in the
 // design's 28px-tall bar.
 const (
-	trayCanvas   = 44   // px: 22pt at 2x
-	trayIcon     = 32.0 // px: 16pt at 2x
-	trayUnit     = trayIcon / 14
-	trayInset    = (trayCanvas - trayIcon) / 2
-	trayBarWidth = 2.25
-	trayBarGap   = 1.0
-	trackAlpha   = 0.28 // the track, as #48484E on #1B1B1E reads
+	trayCanvas = 44   // px: 22pt at 2x
+	trayIcon   = 32.0 // px: 16pt at 2x
+	trayUnit   = trayIcon / 14
+	trayInset  = (trayCanvas - trayIcon) / 2
+	trackAlpha = 0.28 // the track, as #48484E on #1B1B1E reads
 )
 
-// trayPNG draws CPU, GPU, memory and disk usage from left to right, each 0–100.
-func trayPNG(cpu, gpu, mem, disk float64) []byte {
+func trayPresentation(s stats.Snapshot, selected trayMetrics) ([]byte, string) {
+	var levels []float64
+	var labels []string
+	for _, option := range trayOptions {
+		if selected&option.metric == 0 {
+			continue
+		}
+		usage, available := option.read(s)
+		levels = append(levels, max(usage, 0))
+		value := "不可用"
+		if available {
+			value = fmt.Sprintf("%.0f%%", usage)
+		}
+		labels = append(labels, option.label+" "+value)
+	}
+	return trayPNG(levels), strings.Join(labels, "，")
+}
+
+// trayPNG centers one to four bars. Up to three retain the original 3-unit
+// width and 1.5-unit gaps; four use narrower bars to fit the same canvas.
+func trayPNG(levels []float64) []byte {
 	img := image.NewNRGBA(image.Rect(0, 0, trayCanvas, trayCanvas))
-	for i, v := range []float64{cpu, gpu, mem, disk} {
-		x := 1 + (trayBarWidth+trayBarGap)*float64(i)
+	width, gap := 3.0, 1.5
+	if len(levels) == 4 {
+		width, gap = 2.25, 1
+	}
+	span := float64(len(levels))*width + float64(len(levels)-1)*gap
+	start := (14 - span) / 2
+	for i, v := range levels {
+		x := start + (width+gap)*float64(i)
 		level := 12 * clamp(v, 0, 100) / 100
 		// a sliver so an idle bar still shows it is a bar
 		level = math.Max(level, 1.2)
-		bar(img, x, 1, trayBarWidth, 12, trackAlpha)
-		bar(img, x, 13-level, trayBarWidth, level, 1)
+		bar(img, x, 1, width, 12, trackAlpha)
+		bar(img, x, 13-level, width, level, 1)
 	}
 	var b bytes.Buffer
 	_ = png.Encode(&b, img)
