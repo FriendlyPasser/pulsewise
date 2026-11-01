@@ -20,7 +20,7 @@ func TestTooltipShowsDiskCapacity(t *testing.T) {
 }
 
 func TestTrayPNG(t *testing.T) {
-	img, err := png.Decode(bytes.NewReader(trayPNG(23, 41, 62)))
+	img, err := png.Decode(bytes.NewReader(trayPNG(23, 41, 62, 80)))
 	if err != nil {
 		t.Fatal(err)
 	}

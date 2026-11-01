@@ -91,7 +91,7 @@ func Run() error {
 }
 
 func iconOf(s stats.Snapshot) []byte {
-	return trayPNG(s.CPU.Usage, max(s.GPU.Usage, 0), s.Memory.Usage())
+	return trayPNG(s.CPU.Usage, max(s.GPU.Usage, 0), s.Memory.Usage(), s.Disk.Usage())
 }
 
 func tooltipOf(s stats.Snapshot) string {

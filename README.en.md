@@ -20,7 +20,7 @@
 
 ## Features
 
-- **Three-bar menu bar icon**: one bar each for CPU, GPU and memory, refreshed every second. It is a template image, so it suits both dark and light menu bars. Hover for exact percentages.
+- **Four-bar menu bar icon**: CPU, GPU, memory and disk usage from left to right, refreshed every second. It is a template image, so it suits both dark and light menu bars. Hover for exact percentages.
 - **Dropdown panel**: left-click the icon to open it. CPU and GPU come with a sparkline of the last 17 seconds.
   - CPU: user / system / idle
   - GPU: utilization, model, core count
