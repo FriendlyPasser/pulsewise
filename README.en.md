@@ -33,7 +33,15 @@ Right-click the icon to choose metrics, restore the defaults or quit. The dropdo
 
 > The panel's labels are in Chinese.
 
-## Build and run
+## Download and install
+
+Download the latest `.dmg` from [Releases](https://github.com/FriendlyPasser/pulsewise/releases/latest), open it, and drag `Pulsewise.app` into the Applications folder.
+
+- **Requirements**: macOS 13 or later, Apple silicon or Intel Mac (universal binary).
+- **Signed & notarized**: release builds are signed with a Developer ID and notarized by Apple.
+- **Auto-update**: release builds check for and download updates automatically; click the update button in the panel to restart into the new version, or trigger a check from the right-click menu. Auto-update only works for release builds placed in a writable location such as Applications; source builds do not check for updates.
+
+## Build from source
 
 Requires macOS, Go 1.27+ and the Xcode command line tools (the sampler uses cgo).
 
