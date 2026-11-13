@@ -78,7 +78,6 @@ func Run() error {
 	refreshTray(snap)
 	tray.AttachWindow(h.panel).WindowOffset(6)
 
-	// right-click: the menu (Wails' default with a window attached)
 	menu := h.app.NewMenu()
 	display := menu.AddSubmenu("菜单栏显示")
 	items := make(map[trayMetrics]*application.MenuItem, len(trayOptions))
@@ -106,12 +105,30 @@ func Run() error {
 	})
 	syncTrayMenu(items, selected)
 	menu.AddSeparator()
+	loginDriver := newLoginItemDriver()
+	var loginItem *application.MenuItem
 	if updater.Status().State != update.Off {
+		if loginDriver.available() {
+			loginItem = menu.AddCheckbox("登录时打开", false)
+			prompt := wailsLoginPrompt{app: h.app, driver: loginDriver}
+			loginItem.OnClick(func(*application.Context) {
+				application.InvokeAsync(func() { toggleLoginItem(loginItem, loginDriver, prompt) })
+			})
+			syncLoginItem(loginItem, loginDriver)
+		}
 		menu.Add("检查更新").OnClick(func(*application.Context) { updater.Check() })
 		menu.AddSeparator()
 	}
 	menu.Add("退出 Pulsewise").OnClick(func(*application.Context) { h.app.Quit() })
 	tray.SetMenu(menu)
+	// System Settings can change login-item state out of band.
+	tray.OnRightClick(func() {
+		if h.panel != nil && h.panel.IsVisible() {
+			h.panel.Hide()
+		}
+		syncLoginItem(loginItem, loginDriver)
+		tray.OpenMenu()
+	})
 
 	go sampler.Run(ctx)
 	go func() {
