@@ -231,10 +231,24 @@ func TestUpdaterOffOutsideBundle(t *testing.T) {
 	if s := u.Status(); s.State != Off {
 		t.Errorf("state %q", s.State)
 	}
+	if u.adminPrompt != defaultAdminPrompt {
+		t.Errorf("default adminPrompt = %q, want %q", u.adminPrompt, defaultAdminPrompt)
+	}
 	u.Check()
 	u.Run()
 	if s := u.Status(); s.State != Off {
 		t.Errorf("after Check: %q", s.State)
+	}
+}
+
+func TestWithAdminPrompt(t *testing.T) {
+	u := New(context.Background(), WithAdminPrompt("Pulsewise 正在更新。"))
+	if u.adminPrompt != "Pulsewise 正在更新。" {
+		t.Fatalf("adminPrompt = %q", u.adminPrompt)
+	}
+	uEmpty := New(context.Background(), WithAdminPrompt(""))
+	if uEmpty.adminPrompt != defaultAdminPrompt {
+		t.Fatalf("empty option overrode default: %q", uEmpty.adminPrompt)
 	}
 }
 
