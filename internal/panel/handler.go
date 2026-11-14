@@ -2,8 +2,10 @@
 package panel
 
 import (
+	"bytes"
 	"embed"
 	"encoding/json"
+	"html/template"
 	"io/fs"
 	"net/http"
 
@@ -30,9 +32,22 @@ type SnapshotSource interface {
 //	POST /api/quit   quits the app
 //
 // Updates is optional. Without it, status is off and update commands are absent.
-func Handler(w Host, s SnapshotSource, u Updates) http.Handler {
+func Handler(w Host, s SnapshotSource, u Updates, loc Locale) http.Handler {
+	tmpl := template.Must(template.ParseFS(assets, "assets/index.html"))
+	var page bytes.Buffer
+	if err := tmpl.Execute(&page, messagesForLocale(loc)); err != nil {
+		panic(err)
+	}
+	indexHTML := page.Bytes()
+	serveIndex := func(rw http.ResponseWriter, _ *http.Request) {
+		rw.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = rw.Write(indexHTML)
+	}
+
 	mux := http.NewServeMux()
 	sub, _ := fs.Sub(assets, "assets")
+	mux.HandleFunc("GET /{$}", serveIndex)
+	mux.HandleFunc("GET /index.html", serveIndex)
 	mux.Handle("/", http.FileServerFS(sub))
 	mux.HandleFunc("GET /api/state", func(rw http.ResponseWriter, _ *http.Request) {
 		writeJSON(rw, s.Latest())

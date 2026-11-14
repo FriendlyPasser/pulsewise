@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/FriendlyPasser/pulsewise/internal/panel"
 	"github.com/FriendlyPasser/pulsewise/internal/stats"
 )
 
@@ -24,13 +25,13 @@ const (
 var trayOptions = [...]struct {
 	metric trayMetrics
 	key    string
-	label  string
+	label  func(panel.Locale) string
 	read   func(stats.Snapshot) (float64, bool)
 }{
-	{showCPU, "cpu", "CPU", func(s stats.Snapshot) (float64, bool) { return s.CPU.Usage, true }},
-	{showGPU, "gpu", "GPU", func(s stats.Snapshot) (float64, bool) { return s.GPU.Usage, s.GPU.Usage >= 0 }},
-	{showMemory, "memory", "内存", func(s stats.Snapshot) (float64, bool) { return s.Memory.Usage(), s.Memory.Total > 0 }},
-	{showDisk, "disk", "硬盘", func(s stats.Snapshot) (float64, bool) { return s.Disk.Usage(), s.Disk.Total > 0 }},
+	{showCPU, "cpu", func(panel.Locale) string { return "CPU" }, func(s stats.Snapshot) (float64, bool) { return s.CPU.Usage, true }},
+	{showGPU, "gpu", func(panel.Locale) string { return "GPU" }, func(s stats.Snapshot) (float64, bool) { return s.GPU.Usage, s.GPU.Usage >= 0 }},
+	{showMemory, "memory", func(loc panel.Locale) string { return messagesForLocale(loc).metricMemory }, func(s stats.Snapshot) (float64, bool) { return s.Memory.Usage(), s.Memory.Total > 0 }},
+	{showDisk, "disk", func(loc panel.Locale) string { return messagesForLocale(loc).metricDisk }, func(s stats.Snapshot) (float64, bool) { return s.Disk.Usage(), s.Disk.Total > 0 }},
 }
 
 func (m trayMetrics) toggle(metric trayMetrics) trayMetrics {

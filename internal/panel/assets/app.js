@@ -7,6 +7,38 @@
   var GB = 1024 * 1024 * 1024;
   var MB = 1024 * 1024;
 
+  var MESSAGES = {
+    zh: {
+      diskUsed: function (used, avail) { return "已用 " + used + "，可用 " + avail; },
+      diskUnavailable: "容量暂不可用",
+      downloading: "下载中",
+      update: "更新",
+      restartTo: "重启以更新到 ",
+      newVersion: "新版本",
+      translocated: "先把 Pulsewise 移到“应用程序”文件夹，它才能自己更新",
+      readOnly: "Pulsewise 在只读的磁盘上，没法自己更新",
+      downloadLine: "\n下载 ",
+      restarting: "正在重启…"
+    },
+    en: {
+      diskUsed: function (used, avail) { return "Used " + used + ", available " + avail; },
+      diskUnavailable: "Capacity unavailable",
+      downloading: "Downloading",
+      update: "Update",
+      restartTo: "Restart to update to ",
+      newVersion: "New Version",
+      translocated: "Move Pulsewise to the Applications folder so it can update itself",
+      readOnly: "Pulsewise is on a read-only disk and cannot update itself",
+      downloadLine: "\nDownload ",
+      restarting: "Restarting…"
+    }
+  };
+
+  function messages() {
+    var lang = (document.documentElement && document.documentElement.lang) || "";
+    return lang.toLowerCase().indexOf("zh") === 0 ? MESSAGES.zh : MESSAGES.en;
+  }
+
   function pct(v) { return Math.round(v) + "%"; }
 
   function size(bytes) {
@@ -31,12 +63,13 @@
     $("diskFill").style.width = usage + "%";
     var meter = $("diskMeter");
     meter.classList.toggle("low-space", available && usage >= 90);
+    var m = messages();
     if (available) {
       meter.setAttribute("aria-valuenow", usage.toFixed(1));
-      meter.setAttribute("aria-valuetext", "已用 " + pct(usage) + "，可用 " + diskSize(d.available));
+      meter.setAttribute("aria-valuetext", m.diskUsed(pct(usage), diskSize(d.available)));
     } else {
       meter.removeAttribute("aria-valuenow");
-      meter.setAttribute("aria-valuetext", "容量暂不可用");
+      meter.setAttribute("aria-valuetext", m.diskUnavailable);
     }
   }
 
@@ -153,23 +186,22 @@
   // changes, so a hover isn't lost each second
   var shown = "";
   function renderUpdate(u) {
+    var m = messages();
     var label = "", title = "", act = "", busy = false;
     switch (u.state) {
       case "downloading":
-        label = "下载中" + (u.total > 0 ? " " + Math.floor(u.done / u.total * 100) + "%" : "…");
+        label = m.downloading + (u.total > 0 ? " " + Math.floor(u.done / u.total * 100) + "%" : "…");
         busy = true;
         break;
       case "ready":
-        label = "更新";
+        label = m.update;
         act = "restart";
-        title = "重启以更新到 " + u.latest + (u.notes ? "\n\n" + u.notes : "");
+        title = m.restartTo + u.latest + (u.notes ? "\n\n" + u.notes : "");
         break;
       case "available":
-        label = "新版本";
+        label = m.newVersion;
         act = "page";
-        title = (u.stuck === "translocated"
-          ? "先把 Pulsewise 移到“应用程序”文件夹，它才能自己更新"
-          : "Pulsewise 在只读的磁盘上，没法自己更新") + "\n下载 " + u.latest;
+        title = (u.stuck === "translocated" ? m.translocated : m.readOnly) + m.downloadLine + u.latest;
         break;
     }
     var key = [label, title, act, busy].join("\n");
@@ -187,7 +219,7 @@
     var el = $("update");
     if (el.dataset.do === "restart") {
       el.classList.add("busy");
-      $("updateLabel").textContent = "正在重启…";
+      $("updateLabel").textContent = messages().restarting;
       // the app quits; if it couldn't, the next tick draws the pill again
       post("/api/update/restart").then(function () { shown = ""; });
     } else if (el.dataset.do === "page") {

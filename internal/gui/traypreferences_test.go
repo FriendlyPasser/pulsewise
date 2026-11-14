@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/FriendlyPasser/pulsewise/internal/panel"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -88,16 +89,34 @@ func TestTrayMetricsAlwaysRetainOneSelection(t *testing.T) {
 }
 
 func TestTrayMenuReflectsSelectionAndProtectsLastItem(t *testing.T) {
-	items := make(map[trayMetrics]*application.MenuItem, len(trayOptions))
-	for _, option := range trayOptions {
-		items[option.metric] = application.NewMenuItemCheckbox(option.label, false)
+	for _, loc := range []panel.Locale{panel.LocaleZhCN, panel.LocaleEn} {
+		t.Run(string(loc), func(t *testing.T) {
+			items := make(map[trayMetrics]*application.MenuItem, len(trayOptions))
+			for _, option := range trayOptions {
+				items[option.metric] = application.NewMenuItemCheckbox(option.label(loc), false)
+			}
+			for selected := trayMetrics(1); selected <= showCPU|showGPU|showMemory|showDisk; selected++ {
+				syncTrayMenu(items, selected)
+				for _, option := range trayOptions {
+					item := items[option.metric]
+					if item.Checked() != (selected&option.metric != 0) || item.Enabled() != (selected != option.metric) {
+						t.Fatalf("selection %v, item %s: checked=%v enabled=%v", selected, option.key, item.Checked(), item.Enabled())
+					}
+				}
+			}
+		})
 	}
-	for selected := trayMetrics(1); selected <= showCPU|showGPU|showMemory|showDisk; selected++ {
-		syncTrayMenu(items, selected)
-		for _, option := range trayOptions {
-			item := items[option.metric]
-			if item.Checked() != (selected&option.metric != 0) || item.Enabled() != (selected != option.metric) {
-				t.Fatalf("selection %v, item %s: checked=%v enabled=%v", selected, option.key, item.Checked(), item.Enabled())
+}
+
+func TestTrayOptionLabels(t *testing.T) {
+	want := map[panel.Locale][]string{
+		panel.LocaleZhCN: {"CPU", "GPU", "内存", "硬盘"},
+		panel.LocaleEn:   {"CPU", "GPU", "Memory", "Disk"},
+	}
+	for loc, labels := range want {
+		for i, option := range trayOptions {
+			if got := option.label(loc); got != labels[i] {
+				t.Fatalf("loc %s option %s label = %q, want %q", loc, option.key, got, labels[i])
 			}
 		}
 	}

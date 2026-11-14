@@ -9,6 +9,7 @@ import (
 	"math"
 	"strings"
 
+	"github.com/FriendlyPasser/pulsewise/internal/panel"
 	"github.com/FriendlyPasser/pulsewise/internal/stats"
 )
 
@@ -27,7 +28,8 @@ const (
 	trackAlpha = 0.28 // the track, as #48484E on #1B1B1E reads
 )
 
-func trayPresentation(s stats.Snapshot, selected trayMetrics) ([]byte, string) {
+func trayPresentation(s stats.Snapshot, selected trayMetrics, loc panel.Locale) ([]byte, string) {
+	msg := messagesForLocale(loc)
 	var levels []float64
 	var labels []string
 	for _, option := range trayOptions {
@@ -36,13 +38,13 @@ func trayPresentation(s stats.Snapshot, selected trayMetrics) ([]byte, string) {
 		}
 		usage, available := option.read(s)
 		levels = append(levels, max(usage, 0))
-		value := "不可用"
+		value := msg.trayUnavailable
 		if available {
 			value = fmt.Sprintf("%.0f%%", usage)
 		}
-		labels = append(labels, option.label+" "+value)
+		labels = append(labels, option.label(loc)+" "+value)
 	}
-	return trayPNG(levels), strings.Join(labels, "，")
+	return trayPNG(levels), strings.Join(labels, msg.traySeparator)
 }
 
 // trayPNG centers one to four bars. Up to three retain the original 3-unit

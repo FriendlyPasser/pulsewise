@@ -29,7 +29,7 @@ func Serve(addr string) error {
 	defer cancel()
 	sampler := stats.NewSampler(time.Second)
 	go sampler.Run(ctx)
-	srv := &http.Server{Handler: panel.Handler(host{quit: cancel}, sampler, nil)}
+	srv := &http.Server{Handler: panel.Handler(host{quit: cancel}, sampler, nil, panel.SystemLocale())}
 	shutdownDone := make(chan struct{})
 	defer func() {
 		cancel()

@@ -6,16 +6,23 @@ import (
 	"math/bits"
 	"testing"
 
+	"github.com/FriendlyPasser/pulsewise/internal/panel"
 	"github.com/FriendlyPasser/pulsewise/internal/stats"
 )
 
 func TestTooltipShowsDiskCapacity(t *testing.T) {
 	snap := stats.Snapshot{Disk: stats.Disk{Total: 1000, Used: 750, Available: 250}}
-	if _, tip := trayPresentation(snap, showDisk); tip != "硬盘 75%" {
-		t.Fatalf("tooltip = %q", tip)
+	if _, tip := trayPresentation(snap, showDisk, panel.LocaleZhCN); tip != "硬盘 75%" {
+		t.Fatalf("zh tooltip = %q", tip)
 	}
-	if _, tip := trayPresentation(stats.Snapshot{}, showDisk); tip != "硬盘 不可用" {
-		t.Fatalf("unavailable tooltip = %q", tip)
+	if _, tip := trayPresentation(stats.Snapshot{}, showDisk, panel.LocaleZhCN); tip != "硬盘 不可用" {
+		t.Fatalf("zh unavailable tooltip = %q", tip)
+	}
+	if _, tip := trayPresentation(snap, showDisk, panel.LocaleEn); tip != "Disk 75%" {
+		t.Fatalf("en tooltip = %q", tip)
+	}
+	if _, tip := trayPresentation(stats.Snapshot{}, showDisk, panel.LocaleEn); tip != "Disk unavailable" {
+		t.Fatalf("en unavailable tooltip = %q", tip)
 	}
 }
 
@@ -42,7 +49,7 @@ func TestTrayPresentationFollowsSelection(t *testing.T) {
 		Disk:   stats.Disk{Total: 100, Used: 80, Available: 20},
 	}
 	for selected := trayMetrics(1); selected <= showCPU|showGPU|showMemory|showDisk; selected++ {
-		data, _ := trayPresentation(snap, selected)
+		data, _ := trayPresentation(snap, selected, panel.LocaleEn)
 		img, err := png.Decode(bytes.NewReader(data))
 		if err != nil {
 			t.Fatal(err)
@@ -60,11 +67,17 @@ func TestTrayPresentationFollowsSelection(t *testing.T) {
 			t.Fatalf("selection %v has %d visible bars, want %d", selected, tracks, want)
 		}
 	}
-	if _, tip := trayPresentation(snap, showCPU|showMemory|showDisk); tip != "CPU 23%，内存 62%，硬盘 80%" {
-		t.Fatalf("selected tooltip = %q", tip)
+	if _, tip := trayPresentation(snap, showCPU|showMemory|showDisk, panel.LocaleZhCN); tip != "CPU 23%，内存 62%，硬盘 80%" {
+		t.Fatalf("zh selected tooltip = %q", tip)
+	}
+	if _, tip := trayPresentation(snap, showCPU|showMemory|showDisk, panel.LocaleEn); tip != "CPU 23%, Memory 62%, Disk 80%" {
+		t.Fatalf("en selected tooltip = %q", tip)
 	}
 	snap.GPU.Usage = -1
-	if _, tip := trayPresentation(snap, showGPU); tip != "GPU 不可用" {
-		t.Fatalf("unavailable GPU tooltip = %q", tip)
+	if _, tip := trayPresentation(snap, showGPU, panel.LocaleZhCN); tip != "GPU 不可用" {
+		t.Fatalf("zh unavailable GPU tooltip = %q", tip)
+	}
+	if _, tip := trayPresentation(snap, showGPU, panel.LocaleEn); tip != "GPU unavailable" {
+		t.Fatalf("en unavailable GPU tooltip = %q", tip)
 	}
 }
