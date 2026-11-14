@@ -35,10 +35,12 @@ func (h *host) Quit() { h.app.Quit() }
 // decodes the 1024px PNG into a bitmap that kept 32 MB, half the app's
 // memory. The Finder's icon is the .app bundle's job (build/icon).
 func Run() error {
+	loc := panel.SystemLocale()
+	msg := messagesForLocale(loc)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	sampler := stats.NewSampler(time.Second)
-	updater := update.New(ctx)
+	updater := update.New(ctx, update.WithAdminPrompt(msg.adminUpdatePrompt))
 	selected := defaultTrayMetrics
 	preferencesPath, err := trayPreferencesPath()
 	if err == nil {
@@ -52,7 +54,7 @@ func Run() error {
 	h.app = application.New(application.Options{
 		Name:        "Pulsewise",
 		Description: "CPU, GPU, memory and disk capacity in the menu bar",
-		Assets:      application.AssetOptions{Handler: panel.Handler(h, sampler, updater)},
+		Assets:      application.AssetOptions{Handler: panel.Handler(h, sampler, updater, loc)},
 		// a version downloaded and not restarted into goes in on the way
 		// out, so the next launch is the new one
 		OnShutdown: func() {
@@ -69,7 +71,7 @@ func Run() error {
 	tray := h.app.SystemTray.New()
 	// After startup, selection and rendering are owned by the native UI thread.
 	refreshTray := func(s stats.Snapshot) {
-		icon, tip := trayPresentation(s, selected)
+		icon, tip := trayPresentation(s, selected, loc)
 		tray.SetTemplateIcon(icon)
 		tray.SetTooltip(tip)
 	}
@@ -79,13 +81,13 @@ func Run() error {
 	tray.AttachWindow(h.panel).WindowOffset(6)
 
 	menu := h.app.NewMenu()
-	display := menu.AddSubmenu("菜单栏显示")
+	display := menu.AddSubmenu(msg.menuDisplay)
 	items := make(map[trayMetrics]*application.MenuItem, len(trayOptions))
 	applySelection := func(next trayMetrics) {
 		if err := saveTrayMetrics(preferencesPath, next); err != nil {
 			log.Println("pulsewise: save tray preferences:", err)
 			syncTrayMenu(items, selected)
-			h.app.Dialog.Error().SetTitle("无法保存显示设置").SetMessage("显示设置未保存，请稍后重试。").Show()
+			h.app.Dialog.Error().SetTitle(msg.savePrefsErrTitle).SetMessage(msg.savePrefsErrMsg).Show()
 			return
 		}
 		selected = next
@@ -93,14 +95,14 @@ func Run() error {
 		refreshTray(sampler.Latest())
 	}
 	for _, option := range trayOptions {
-		items[option.metric] = display.AddCheckbox(option.label, selected&option.metric != 0).
+		items[option.metric] = display.AddCheckbox(option.label(loc), selected&option.metric != 0).
 			OnClick(func(*application.Context) {
 				application.InvokeAsync(func() { applySelection(selected.toggle(option.metric)) })
 			})
 	}
 	display.AddSeparator()
-	display.Add("至少保留一项").SetEnabled(false)
-	display.Add("恢复默认").OnClick(func(*application.Context) {
+	display.Add(msg.keepAtLeastOne).SetEnabled(false)
+	display.Add(msg.restoreDefaults).OnClick(func(*application.Context) {
 		application.InvokeAsync(func() { applySelection(defaultTrayMetrics) })
 	})
 	syncTrayMenu(items, selected)
@@ -109,24 +111,24 @@ func Run() error {
 	var loginItem *application.MenuItem
 	if updater.Status().State != update.Off {
 		if loginDriver.available() {
-			loginItem = menu.AddCheckbox("登录时打开", false)
-			prompt := wailsLoginPrompt{app: h.app, driver: loginDriver}
+			loginItem = menu.AddCheckbox(msg.openAtLogin, false)
+			prompt := wailsLoginPrompt{app: h.app, driver: loginDriver, msg: msg}
 			loginItem.OnClick(func(*application.Context) {
-				application.InvokeAsync(func() { toggleLoginItem(loginItem, loginDriver, prompt) })
+				application.InvokeAsync(func() { toggleLoginItem(loginItem, loginDriver, prompt, msg) })
 			})
-			syncLoginItem(loginItem, loginDriver)
+			syncLoginItem(loginItem, loginDriver, msg)
 		}
-		menu.Add("检查更新").OnClick(func(*application.Context) { updater.Check() })
+		menu.Add(msg.checkForUpdates).OnClick(func(*application.Context) { updater.Check() })
 		menu.AddSeparator()
 	}
-	menu.Add("退出 Pulsewise").OnClick(func(*application.Context) { h.app.Quit() })
+	menu.Add(msg.quitApp).OnClick(func(*application.Context) { h.app.Quit() })
 	tray.SetMenu(menu)
 	// System Settings can change login-item state out of band.
 	tray.OnRightClick(func() {
 		if h.panel != nil && h.panel.IsVisible() {
 			h.panel.Hide()
 		}
-		syncLoginItem(loginItem, loginDriver)
+		syncLoginItem(loginItem, loginDriver, msg)
 		tray.OpenMenu()
 	})
 

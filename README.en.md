@@ -20,7 +20,7 @@
 
 ## Features
 
-- **Configurable menu bar columns**: CPU, GPU and memory by default. Right-click the icon and use “菜单栏显示” to select 1–4 metrics from CPU, GPU, memory and disk. Changes apply immediately and persist after restart. Columns refresh every second, adapt to light and dark menu bars, and match the tooltip order.
+- **Configurable menu bar columns**: CPU, GPU and memory by default. Right-click the icon and use “Menu Bar Display” to select 1–4 metrics from CPU, GPU, memory and disk. Changes apply immediately and persist after restart. Columns refresh every second, adapt to light and dark menu bars, and match the tooltip order.
 - **Dropdown panel**: left-click the icon to open it. CPU and GPU come with a sparkline of the last 17 seconds.
   - CPU: user / system / idle
   - GPU: utilization, model, core count
@@ -31,7 +31,7 @@
 
 Right-click the icon to choose metrics, restore the defaults or quit. The dropdown panel always shows all monitoring details.
 
-> The panel's labels are in Chinese.
+> The interface follows your macOS system language (Simplified Chinese and English, defaulting to English for other languages).
 
 ## Download and install
 

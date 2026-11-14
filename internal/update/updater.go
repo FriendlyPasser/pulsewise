@@ -44,10 +44,11 @@ type Status struct {
 // and every Every, downloads a newer release straight away, and leaves it
 // staged for Restart, or for Quit to put in.
 type Updater struct {
-	ctx     context.Context
-	bundle  string
-	current string
-	stuck   string
+	ctx         context.Context
+	bundle      string
+	current     string
+	stuck       string
+	adminPrompt string
 
 	mu     sync.Mutex
 	state  State
@@ -58,10 +59,28 @@ type Updater struct {
 	total  int64
 }
 
+// Option configures an Updater.
+type Option func(*Updater)
+
+// WithAdminPrompt sets the prompt shown when requesting administrator
+// privileges to replace the bundle.
+func WithAdminPrompt(prompt string) Option {
+	return func(u *Updater) {
+		if prompt != "" {
+			u.adminPrompt = prompt
+		}
+	}
+}
+
 // New ties checks and downloads to the application's context. The updater is
 // Off outside a bundle, or when the app has no version or signing team.
-func New(ctx context.Context) *Updater {
-	u := &Updater{ctx: ctx, state: Off}
+func New(ctx context.Context, opts ...Option) *Updater {
+	u := &Updater{ctx: ctx, state: Off, adminPrompt: defaultAdminPrompt}
+	for _, opt := range opts {
+		if opt != nil {
+			opt(u)
+		}
+	}
 	b := Bundle()
 	if b == "" {
 		return u
@@ -174,7 +193,7 @@ func (u *Updater) install(ask bool) error {
 	}
 	err := Install(u.staged, u.bundle)
 	if ask && NeedsAdmin(err) {
-		err = InstallAsAdmin(u.staged, u.bundle)
+		err = installAsAdmin(u.staged, u.bundle, u.adminPrompt)
 	}
 	if err != nil {
 		if !errors.Is(err, ErrCanceled) {

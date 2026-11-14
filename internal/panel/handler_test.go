@@ -52,7 +52,7 @@ func TestStateContract(t *testing.T) {
 		GPU: stats.GPU{Usage: -1}, Memory: stats.Memory{Total: 1024, Used: 512}, At: 1234,
 		Disk: stats.Disk{Total: 1000, Used: 750, Available: 250},
 	}
-	h := Handler(&testHost{}, fixedSnapshots{want}, nil)
+	h := Handler(&testHost{}, fixedSnapshots{want}, nil, LocaleZhCN)
 	rw := request(h, "GET", "/api/state", "")
 	var got stats.Snapshot
 	if err := json.Unmarshal(rw.Body.Bytes(), &got); err != nil {
@@ -70,22 +70,22 @@ func TestFitValidatesAtHTTPBoundary(t *testing.T) {
 	for _, body := range []string{`{}`, `{"height":0}`, `{"height":-1}`, `{"height":"440"}`, `broken`} {
 		t.Run(body, func(t *testing.T) {
 			host := &testHost{}
-			rw := request(Handler(host, fixedSnapshots{}, nil), "POST", "/api/fit", body)
+			rw := request(Handler(host, fixedSnapshots{}, nil, LocaleEn), "POST", "/api/fit", body)
 			if rw.Code != http.StatusBadRequest || host.height != 0 {
 				t.Fatalf("response %d, height %d", rw.Code, host.height)
 			}
 		})
 	}
 	host := &testHost{}
-	rw := request(Handler(host, fixedSnapshots{}, nil), "POST", "/api/fit", `{"height":440}`)
+	rw := request(Handler(host, fixedSnapshots{}, nil, LocaleEn), "POST", "/api/fit", `{"height":440}`)
 	if rw.Code != http.StatusNoContent || host.height != 440 {
 		t.Fatalf("response %d, height %d", rw.Code, host.height)
 	}
 }
 
 func TestEmbeddedAssets(t *testing.T) {
-	h := Handler(&testHost{}, fixedSnapshots{}, nil)
-	for path, text := range map[string]string{"/": "cpuValue", "/app.js": "/api/state", "/app.css": "--panel"} {
+	h := Handler(&testHost{}, fixedSnapshots{}, nil, LocaleZhCN)
+	for path, text := range map[string]string{"/": "cpuValue", "/index.html": "cpuValue", "/app.js": "/api/state", "/app.css": "--panel"} {
 		rw := request(h, "GET", path, "")
 		if rw.Code != http.StatusOK || !strings.Contains(rw.Body.String(), text) {
 			t.Fatalf("asset %s: status %d", path, rw.Code)
@@ -93,8 +93,62 @@ func TestEmbeddedAssets(t *testing.T) {
 	}
 }
 
+func TestLocalizedPanelHTML(t *testing.T) {
+	cases := []struct {
+		name    string
+		loc     Locale
+		want    []string
+		notWant []string
+	}{
+		{
+			name:    "simplified chinese",
+			loc:     LocaleZhCN,
+			want:    []string{`<html lang="zh-CN">`, "用户", "系统", "空闲", "内存", "硬盘", "系统磁盘", "容量暂不可用", "退出"},
+			notWant: []string{`<html lang="en">`, "Memory", "System Disk", "Capacity unavailable", "Quit"},
+		},
+		{
+			name:    "english",
+			loc:     LocaleEn,
+			want:    []string{`<html lang="en">`, "User", "Sys", "Idle", "Memory", "Disk", "System Disk", "Capacity unavailable", "Quit"},
+			notWant: []string{`<html lang="zh-CN">`, "内存", "硬盘", "系统磁盘", "容量暂不可用", "退出"},
+		},
+		{
+			name:    "unknown locale defaults to english",
+			loc:     Locale("fr"),
+			want:    []string{`<html lang="en">`, "Memory", "System Disk", "Quit"},
+			notWant: []string{`<html lang="zh-CN">`, "内存", "退出"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			h := Handler(&testHost{}, fixedSnapshots{}, nil, tc.loc)
+			for _, path := range []string{"/", "/index.html"} {
+				rw := request(h, "GET", path, "")
+				if rw.Code != http.StatusOK {
+					t.Fatalf("%s %s: status %d", tc.name, path, rw.Code)
+				}
+				if ct := rw.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/html") {
+					t.Fatalf("%s %s: Content-Type = %q", tc.name, path, ct)
+				}
+				body := rw.Body.String()
+				for _, s := range tc.want {
+					if !strings.Contains(body, s) {
+						t.Errorf("%s %s: missing %q", tc.name, path, s)
+					}
+				}
+				for _, s := range tc.notWant {
+					if strings.Contains(body, s) {
+						t.Errorf("%s %s: unexpected %q", tc.name, path, s)
+					}
+				}
+			}
+		})
+	}
+}
+
 func TestBrowserHasNoUpdateCommands(t *testing.T) {
-	h := Handler(&testHost{}, fixedSnapshots{}, nil)
+	h := Handler(&testHost{}, fixedSnapshots{}, nil, LocaleEn)
 	rw := request(h, "GET", "/api/update", "")
 	var status update.Status
 	if err := json.Unmarshal(rw.Body.Bytes(), &status); err != nil {
@@ -113,7 +167,7 @@ func TestBrowserHasNoUpdateCommands(t *testing.T) {
 func TestUpdateCommands(t *testing.T) {
 	u := &testUpdates{status: update.Status{State: update.Ready, Latest: "0.2.0"}}
 	host := &testHost{quit: make(chan struct{}, 1)}
-	h := Handler(host, fixedSnapshots{}, u)
+	h := Handler(host, fixedSnapshots{}, u, LocaleEn)
 	rw := request(h, "GET", "/api/update", "")
 	var got update.Status
 	if err := json.Unmarshal(rw.Body.Bytes(), &got); err != nil || got != u.status {
@@ -137,7 +191,7 @@ func TestUpdateCommands(t *testing.T) {
 func TestRestartFailureKeepsHostRunning(t *testing.T) {
 	host := &testHost{quit: make(chan struct{}, 1)}
 	u := &testUpdates{restartErr: errors.New("install failed"), pageErr: errors.New("no release page")}
-	h := Handler(host, fixedSnapshots{}, u)
+	h := Handler(host, fixedSnapshots{}, u, LocaleEn)
 	for _, action := range []string{"restart", "page"} {
 		if rw := request(h, "POST", "/api/update/"+action, ""); rw.Code != http.StatusConflict {
 			t.Fatalf("%s: status %d", action, rw.Code)
@@ -152,7 +206,7 @@ func TestRestartFailureKeepsHostRunning(t *testing.T) {
 
 func TestQuit(t *testing.T) {
 	host := &testHost{quit: make(chan struct{}, 1)}
-	rw := request(Handler(host, fixedSnapshots{}, nil), "POST", "/api/quit", "")
+	rw := request(Handler(host, fixedSnapshots{}, nil, LocaleEn), "POST", "/api/quit", "")
 	if rw.Code != http.StatusNoContent {
 		t.Fatalf("status %d", rw.Code)
 	}

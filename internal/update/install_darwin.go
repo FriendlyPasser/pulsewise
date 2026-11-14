@@ -36,11 +36,20 @@ func NeedsAdmin(err error) bool {
 // ErrCanceled is the password prompt dismissed.
 var ErrCanceled = errors.New("canceled")
 
+const defaultAdminPrompt = "Pulsewise is updating."
+
 // InstallAsAdmin is Install with the administrator's password, asked for
 // by the system.
 func InstallAsAdmin(staged, bundle string) error {
+	return installAsAdmin(staged, bundle, defaultAdminPrompt)
+}
+
+func installAsAdmin(staged, bundle, prompt string) error {
+	if prompt == "" {
+		prompt = defaultAdminPrompt
+	}
 	old := filepath.Join(filepath.Dir(staged), "old.app")
-	err := asAdmin(swapScript(staged, bundle, old))
+	err := asAdmin(swapScript(staged, bundle, old), prompt)
 	if err == nil {
 		os.RemoveAll(filepath.Dir(filepath.Dir(staged)))
 	}
@@ -53,9 +62,9 @@ func swapScript(staged, bundle, old string) string {
 }
 
 // asAdmin runs a shell script as root, after the system's password prompt.
-func asAdmin(script string) error {
+func asAdmin(script, prompt string) error {
 	out, err := exec.Command("osascript", "-e",
-		`do shell script "`+appleString(script)+`" with prompt "Pulsewise 正在更新。" with administrator privileges`).CombinedOutput()
+		`do shell script "`+appleString(script)+`" with prompt "`+appleString(prompt)+`" with administrator privileges`).CombinedOutput()
 	if err != nil {
 		if strings.Contains(string(out), "(-128)") {
 			return ErrCanceled
