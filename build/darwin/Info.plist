@@ -21,7 +21,12 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleDevelopmentRegion</key>
-	<string>zh_CN</string>
+	<string>en</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+		<string>zh-Hans</string>
+	</array>
 	<key>LSMinimumSystemVersion</key>
 	<string>{{MIN_MACOS}}</string>
 	<key>LSApplicationCategoryType</key>
