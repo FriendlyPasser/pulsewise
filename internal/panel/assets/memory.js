@@ -1,5 +1,3 @@
-// Application memory detail view: polls /api/memory once per second while
-// visible and pauses automatically when hidden or closed.
 (function () {
   "use strict";
 
@@ -57,6 +55,53 @@
     }
   }
 
+  function makeAppItem(app, maxMem, msg) {
+    var isOpen = !!expanded[app.name];
+    var item = el("div", "app-item" + (isOpen ? " expanded" : ""));
+    var row = el("button", "app-row");
+    row.type = "button";
+    row.setAttribute("aria-expanded", String(isOpen));
+
+    var top = el("div", "app-row-top");
+    var main = el("span", "app-main");
+    var chevron = el("span", "row-chevron", "›");
+    chevron.setAttribute("aria-hidden", "true");
+    main.appendChild(chevron);
+    main.appendChild(el("span", "app-name", app.name));
+    var procs = app.processes || [];
+    main.appendChild(el("span", "app-procs", msg.procsCount(procs.length)));
+    top.appendChild(main);
+    top.appendChild(el("span", "app-mem", size(app.memory)));
+    row.appendChild(top);
+
+    var bar = el("span", "app-bar");
+    var fill = el("span", "app-bar-fill");
+    var pct = maxMem > 0 ? Math.max(2, Math.min(100, app.memory / maxMem * 100)) : 0;
+    fill.style.width = pct.toFixed(1) + "%";
+    bar.appendChild(fill);
+    row.appendChild(bar);
+
+    var procList = el("div", "proc-list");
+    procList.hidden = !isOpen;
+    renderProcesses(procList, procs);
+
+    row.addEventListener("click", function () {
+      var open = !expanded[app.name];
+      if (open) {
+        expanded[app.name] = true;
+      } else {
+        delete expanded[app.name];
+      }
+      item.classList.toggle("expanded", open);
+      row.setAttribute("aria-expanded", String(open));
+      procList.hidden = !open;
+    });
+
+    item.appendChild(row);
+    item.appendChild(procList);
+    return item;
+  }
+
   function renderApps(apps, msg) {
     var list = $("appList");
     list.textContent = "";
@@ -72,54 +117,8 @@
     var maxMem = apps[0].memory || 0;
     for (var i = 0; i < apps.length; i++) {
       var app = apps[i];
-      var isOpen = !!expanded[app.name];
-      if (isOpen) nextExpanded[app.name] = true;
-
-      var item = el("div", "app-item" + (isOpen ? " expanded" : ""));
-      var row = el("button", "app-row");
-      row.type = "button";
-      row.setAttribute("aria-expanded", String(isOpen));
-
-      var top = el("div", "app-row-top");
-      var main = el("span", "app-main");
-      var chevron = el("span", "row-chevron", "›");
-      chevron.setAttribute("aria-hidden", "true");
-      main.appendChild(chevron);
-      main.appendChild(el("span", "app-name", app.name));
-      var procs = app.processes || [];
-      main.appendChild(el("span", "app-procs", msg.procsCount(procs.length)));
-      top.appendChild(main);
-      top.appendChild(el("span", "app-mem", size(app.memory)));
-      row.appendChild(top);
-
-      var bar = el("span", "app-bar");
-      var fill = el("span", "app-bar-fill");
-      var pct = maxMem > 0 ? Math.max(2, Math.min(100, app.memory / maxMem * 100)) : 0;
-      fill.style.width = pct.toFixed(1) + "%";
-      bar.appendChild(fill);
-      row.appendChild(bar);
-
-      var procList = el("div", "proc-list");
-      procList.hidden = !isOpen;
-      renderProcesses(procList, procs);
-
-      (function (name, itemEl, rowEl, procsEl) {
-        rowEl.addEventListener("click", function () {
-          var open = !expanded[name];
-          if (open) {
-            expanded[name] = true;
-          } else {
-            delete expanded[name];
-          }
-          itemEl.classList.toggle("expanded", open);
-          rowEl.setAttribute("aria-expanded", String(open));
-          procsEl.hidden = !open;
-        });
-      })(app.name, item, row, procList);
-
-      item.appendChild(row);
-      item.appendChild(procList);
-      list.appendChild(item);
+      if (expanded[app.name]) nextExpanded[app.name] = true;
+      list.appendChild(makeAppItem(app, maxMem, msg));
     }
     expanded = nextExpanded;
   }
@@ -195,10 +194,8 @@
       stopPolling();
     }
   });
-  if (typeof window !== "undefined" && window.addEventListener) {
-    window.addEventListener("pagehide", stopPolling);
-    window.addEventListener("beforeunload", stopPolling);
-  }
+  window.addEventListener("pagehide", stopPolling);
+  window.addEventListener("beforeunload", stopPolling);
 
   startPolling();
 })();

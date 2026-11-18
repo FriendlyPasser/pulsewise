@@ -230,7 +230,7 @@
   $("memMetric").addEventListener("click", function () { post("/api/memory/open"); });
   $("memMetric").addEventListener("keydown", function (e) {
     if (e.key === "Enter" || e.key === " ") {
-      if (e.preventDefault) e.preventDefault();
+      e.preventDefault();
       post("/api/memory/open");
     }
   });

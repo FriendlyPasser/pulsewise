@@ -132,6 +132,7 @@ async function checkOverviewPanel() {
     assert.equal(el("diskMeter").classList.contains("low-space"), warning);
   }
 
+  // A failed sample must clear a previous reading, including the warning.
   disk = { total: 1e12, used: 1e12, available: 0 };
   tick();
   await flush();
@@ -153,6 +154,7 @@ async function checkOverviewPanel() {
   assert.equal(el("diskUsed").textContent, "1.50 TB");
   assert.equal(el("diskAvailable").textContent, "500.0 GB");
 
+  // Update states in Simplified Chinese.
   updateStatus = { state: "downloading", done: 50, total: 100 };
   tick();
   await flush();
@@ -171,6 +173,7 @@ async function checkOverviewPanel() {
   assert.equal(el("updateLabel").textContent, "新版本");
   assert.equal(el("update").title, "先把 Pulsewise 移到“应用程序”文件夹，它才能自己更新\n下载 0.2.0");
 
+  // English localization checks.
   context.document.documentElement.lang = "en";
   disk = { total: 1e12, used: 750e9, available: 250e9 };
   updateStatus = { state: "downloading", done: 50, total: 100 };
@@ -294,7 +297,6 @@ async function checkMemoryDetail() {
   assert.equal(el("unattributedMem").textContent, "512 KB");
   assert.equal(el("unattributedList").hidden, true);
 
-  // Expand the first app (Google Chrome) and the unattributed group.
   const firstItem = el("appList").children[0];
   const firstRow = firstItem.children[0];
   const firstProcList = firstItem.children[1];
@@ -308,7 +310,6 @@ async function checkMemoryDetail() {
   assert.equal(el("unattributedToggle").getAttribute("aria-expanded"), "true");
   assert.equal(el("unattributedList").hidden, false);
 
-  // Fire a scheduled refresh and verify expanded state persists in English too.
   doc.documentElement.lang = "en";
   const [activeTimer] = Array.from(timers.values());
   activeTimer();
@@ -320,7 +321,6 @@ async function checkMemoryDetail() {
   assert.equal(el("appList").children[1].children[0].getAttribute("aria-expanded"), "false");
   assert.equal(el("unattributedList").hidden, false);
 
-  // Hiding the window must stop polling; showing it again must resume immediately.
   doc.visibilityState = "hidden";
   doc.hidden = true;
   for (const fn of docListeners.get("visibilitychange") || []) fn();
