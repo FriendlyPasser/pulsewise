@@ -16,6 +16,7 @@ import (
 type host struct{ quit context.CancelFunc }
 
 func (host) FitPanel(int) {} // A browser has no native panel to resize.
+func (host) OpenMemory()  {} // The browser user can open /memory directly.
 func (h host) Quit()      { h.quit() }
 
 // Serve runs until the panel requests a quit or the server fails.

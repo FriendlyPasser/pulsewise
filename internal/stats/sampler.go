@@ -12,8 +12,9 @@ const HistoryLen = 17
 // Sampler owns the latest snapshot and history. Run has one caller; Latest and
 // Subscribe are safe from any goroutine and return independently owned slices.
 type Sampler struct {
-	interval time.Duration
-	read     func() Snapshot
+	interval   time.Duration
+	read       func() Snapshot
+	readDetail func() MemoryDetail
 
 	mu   sync.RWMutex
 	snap Snapshot
@@ -21,11 +22,20 @@ type Sampler struct {
 }
 
 func NewSampler(interval time.Duration) *Sampler {
-	return newSampler(interval, newSystemReader())
+	s := newSampler(interval, newSystemReader())
+	s.readDetail = ReadMemoryDetail
+	return s
 }
 
 func newSampler(interval time.Duration, read func() Snapshot) *Sampler {
-	s := &Sampler{interval: interval, read: read, subs: make(map[chan Snapshot]struct{})}
+	s := &Sampler{
+		interval: interval,
+		read:     read,
+		readDetail: func() MemoryDetail {
+			return MemoryDetail{Apps: []AppMemory{}, Unattributed: []ProcessMemory{}}
+		},
+		subs: make(map[chan Snapshot]struct{}),
+	}
 	s.sample()
 	return s
 }
@@ -72,6 +82,10 @@ func (s *Sampler) Latest() Snapshot {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.snap.clone()
+}
+
+func (s *Sampler) MemoryDetail() MemoryDetail {
+	return s.readDetail()
 }
 
 func (s *Sampler) sample() {

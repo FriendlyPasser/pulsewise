@@ -18,39 +18,54 @@ var assets embed.FS
 // Host is the window and application control needed by the panel.
 type Host interface {
 	FitPanel(height int)
+	OpenMemory()
 	Quit()
 }
 
 type SnapshotSource interface {
 	Latest() stats.Snapshot
+	MemoryDetail() stats.MemoryDetail
 }
 
-// Handler serves the page from the embedded assets and its JSON API:
+// Handler serves the panel and memory detail pages from embedded assets and
+// their JSON API:
 //
-//	GET  /api/state  the latest sample
-//	POST /api/fit    {height}: the panel is sized to the page
-//	POST /api/quit   quits the app
+//	GET  /api/state        the latest sample
+//	GET  /api/memory       per-application memory breakdown
+//	POST /api/memory/open  opens the application memory detail window
+//	POST /api/fit          {height}: the panel is sized to the page
+//	POST /api/quit         quits the app
 //
 // Updates is optional. Without it, status is off and update commands are absent.
 func Handler(w Host, s SnapshotSource, u Updates, loc Locale) http.Handler {
-	tmpl := template.Must(template.ParseFS(assets, "assets/index.html"))
-	var page bytes.Buffer
-	if err := tmpl.Execute(&page, messagesForLocale(loc)); err != nil {
-		panic(err)
-	}
-	indexHTML := page.Bytes()
-	serveIndex := func(rw http.ResponseWriter, _ *http.Request) {
-		rw.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = rw.Write(indexHTML)
+	tmpl := template.Must(template.ParseFS(assets, "assets/*.html"))
+	msg := messagesForLocale(loc)
+	indexHTML := renderHTML(tmpl, "index.html", msg)
+	memoryHTML := renderHTML(tmpl, "memory.html", msg)
+
+	serveHTML := func(body []byte) http.HandlerFunc {
+		return func(rw http.ResponseWriter, _ *http.Request) {
+			rw.Header().Set("Content-Type", "text/html; charset=utf-8")
+			_, _ = rw.Write(body)
+		}
 	}
 
 	mux := http.NewServeMux()
 	sub, _ := fs.Sub(assets, "assets")
-	mux.HandleFunc("GET /{$}", serveIndex)
-	mux.HandleFunc("GET /index.html", serveIndex)
+	mux.HandleFunc("GET /{$}", serveHTML(indexHTML))
+	mux.HandleFunc("GET /index.html", serveHTML(indexHTML))
+	mux.HandleFunc("GET /memory", serveHTML(memoryHTML))
+	mux.HandleFunc("GET /memory.html", serveHTML(memoryHTML))
 	mux.Handle("/", http.FileServerFS(sub))
 	mux.HandleFunc("GET /api/state", func(rw http.ResponseWriter, _ *http.Request) {
 		writeJSON(rw, s.Latest())
+	})
+	mux.HandleFunc("GET /api/memory", func(rw http.ResponseWriter, _ *http.Request) {
+		writeJSON(rw, s.MemoryDetail())
+	})
+	mux.HandleFunc("POST /api/memory/open", func(rw http.ResponseWriter, _ *http.Request) {
+		w.OpenMemory()
+		rw.WriteHeader(http.StatusNoContent)
 	})
 	mux.HandleFunc("POST /api/fit", func(rw http.ResponseWriter, r *http.Request) {
 		var body struct {
@@ -69,6 +84,14 @@ func Handler(w Host, s SnapshotSource, u Updates, loc Locale) http.Handler {
 	})
 	registerUpdates(mux, u, w.Quit)
 	return mux
+}
+
+func renderHTML(tmpl *template.Template, name string, msg panelMessages) []byte {
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, name, msg); err != nil {
+		panic(err)
+	}
+	return buf.Bytes()
 }
 
 func writeJSON(rw http.ResponseWriter, v any) {

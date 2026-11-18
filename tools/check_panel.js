@@ -1,59 +1,108 @@
-// Exercise the embedded panel script with real markup IDs and controlled samples.
+// Exercise the embedded panel and memory detail scripts with real markup IDs.
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 
 const assets = path.join(__dirname, "../internal/panel/assets");
-const html = fs.readFileSync(path.join(assets, "index.html"), "utf8");
-const elements = new Map();
-for (const match of html.matchAll(/\bid="([^"]+)"/g)) {
+
+function makeNode(tag, id) {
   const classes = new Set();
   const attributes = new Map();
   const listeners = new Map();
-  elements.set(match[1], {
-    textContent: "", style: {}, dataset: {}, title: "", hidden: false,
+  const children = [];
+  let text = "";
+  const node = {
+    tagName: tag.toUpperCase(),
+    id: id || "",
+    style: {},
+    dataset: {},
+    title: "",
+    type: "",
+    hidden: false,
+    children,
+    get className() { return Array.from(classes).join(" "); },
+    set className(value) {
+      classes.clear();
+      for (const part of String(value || "").split(/\s+/)) {
+        if (part) classes.add(part);
+      }
+    },
+    get textContent() { return text; },
+    set textContent(value) {
+      text = String(value);
+      if (value === "") children.length = 0;
+    },
     classList: {
-      toggle(name, on) { if (on) classes.add(name); else classes.delete(name); },
+      toggle(name, on) {
+        const next = on === undefined ? !classes.has(name) : !!on;
+        if (next) classes.add(name); else classes.delete(name);
+        return next;
+      },
       contains(name) { return classes.has(name); },
       add(name) { classes.add(name); },
+      delete(name) { classes.delete(name); },
     },
-    setAttribute(name, value) { attributes.set(name, value); },
+    setAttribute(name, value) { attributes.set(name, String(value)); },
     getAttribute(name) { return attributes.get(name); },
     removeAttribute(name) { attributes.delete(name); },
-    addEventListener(type, fn) { listeners.set(type, fn); },
-    click() { const fn = listeners.get("click"); if (fn) fn(); },
+    addEventListener(type, fn) {
+      const list = listeners.get(type) || [];
+      list.push(fn);
+      listeners.set(type, list);
+    },
+    dispatchEvent(type, event) {
+      for (const fn of listeners.get(type) || []) fn(event || {});
+    },
+    click() { node.dispatchEvent("click", {}); },
+    appendChild(child) { children.push(child); return child; },
     getBoundingClientRect() { return { height: 40 }; },
-  });
+  };
+  return node;
 }
 
-let disk = { total: 1e12, used: 750e9, available: 250e9 };
-let updateStatus = { state: "off" };
-let tick;
-let fits = 0;
-const context = {
-  document: {
-    documentElement: { lang: "zh-CN" },
-    getElementById(id) { assert(elements.has(id), "missing markup ID: " + id); return elements.get(id); },
-    body: { getBoundingClientRect() { return { height: 600 }; } },
-  },
-  fetch(url) {
-    if (url === "/api/fit") fits++;
-    const state = url === "/api/update" ? updateStatus : {
-      cpu: { usage: 20, user: 15, system: 5, idle: 80 },
-      gpu: { usage: -1 },
-      memory: { used: 4e9, total: 8e9, app: 2e9, wired: 1e9, compressed: 1e9, swap: 0 },
-      disk,
-    };
-    return Promise.resolve({ json() { return Promise.resolve(state); } });
-  },
-  setInterval(callback) { tick = callback; },
-};
-vm.runInNewContext(fs.readFileSync(path.join(assets, "app.js"), "utf8"), context);
-const flush = () => new Promise(setImmediate);
-const el = id => elements.get(id);
+function collectElements(htmlPath) {
+  const html = fs.readFileSync(path.join(assets, htmlPath), "utf8");
+  const elements = new Map();
+  for (const match of html.matchAll(/\bid="([^"]+)"/g)) {
+    elements.set(match[1], makeNode("div", match[1]));
+  }
+  return elements;
+}
 
-async function check() {
+const flush = () => new Promise(setImmediate);
+
+async function checkOverviewPanel() {
+  const elements = collectElements("index.html");
+  let disk = { total: 1e12, used: 750e9, available: 250e9 };
+  let updateStatus = { state: "off" };
+  let tick;
+  let fits = 0;
+  let memoryOpens = 0;
+
+  const context = {
+    document: {
+      documentElement: { lang: "zh-CN" },
+      getElementById(id) { assert(elements.has(id), "missing markup ID: " + id); return elements.get(id); },
+      body: { getBoundingClientRect() { return { height: 600 }; } },
+    },
+    fetch(url) {
+      if (url === "/api/fit") fits++;
+      if (url === "/api/memory/open") memoryOpens++;
+      const state = url === "/api/update" ? updateStatus : {
+        cpu: { usage: 20, user: 15, system: 5, idle: 80 },
+        gpu: { usage: -1 },
+        memory: { used: 4e9, total: 8e9, app: 2e9, wired: 1e9, compressed: 1e9, swap: 0 },
+        disk,
+      };
+      return Promise.resolve({ json() { return Promise.resolve(state); } });
+    },
+    setInterval(callback) { tick = callback; },
+  };
+
+  vm.runInNewContext(fs.readFileSync(path.join(assets, "app.js"), "utf8"), context);
+  const el = id => elements.get(id);
+
   await flush();
   assert.equal(el("diskValue").textContent, "75%");
   assert.equal(el("diskUsed").textContent, "750.0 GB");
@@ -64,6 +113,16 @@ async function check() {
   assert.equal(el("diskMeter").getAttribute("aria-valuetext"), "已用 75%，可用 250.0 GB");
   assert.equal(el("diskMeter").classList.contains("low-space"), false);
   assert.equal(fits, 1, "the panel must resize after rendering disk capacity");
+
+  el("memMetric").click();
+  await flush();
+  assert.equal(memoryOpens, 1, "clicking the memory section must open the detail window");
+
+  let prevented = false;
+  el("memMetric").dispatchEvent("keydown", { key: "Enter", preventDefault() { prevented = true; } });
+  await flush();
+  assert.equal(prevented, true);
+  assert.equal(memoryOpens, 2, "pressing Enter on the memory section must open the detail window");
 
   for (const [used, expected, warning] of [[899e9, "90%", false], [900e9, "90%", true], [1e12, "100%", true], [0, "0%", false]]) {
     disk = { total: 1e12, used, available: 1e12 - used };
@@ -150,8 +209,138 @@ async function check() {
   el("update").click();
   await flush();
   assert.equal(el("updateLabel").textContent, "Restarting…");
+}
 
-  console.log("Panel check passed: disk capacity, warnings, unavailable readings, recovery, resize, and i18n.");
+async function checkMemoryDetail() {
+  const elements = collectElements("memory.html");
+  const docListeners = new Map();
+  const winListeners = new Map();
+  const timers = new Map();
+  let nextTimerID = 1;
+  let memoryFetches = 0;
+
+  let detail = {
+    memory: { total: 16 * 1024 ** 3, used: 8 * 1024 ** 3, app: 5 * 1024 ** 3, wired: 2 * 1024 ** 3, compressed: 1024 ** 3, swap: 0 },
+    apps: [
+      {
+        name: "Google Chrome",
+        memory: 3 * 1024 ** 3,
+        processes: [
+          { pid: 101, name: "Google Chrome Helper (Renderer)", memory: 2 * 1024 ** 3 },
+          { pid: 100, name: "Google Chrome", memory: 1024 ** 3 },
+        ],
+      },
+      {
+        name: "WeChat",
+        memory: 500 * 1024 ** 2,
+        processes: [
+          { pid: 200, name: "WeChat", memory: 500 * 1024 ** 2 },
+        ],
+      },
+    ],
+    unattributed: [
+      { pid: 300, name: "sharingd", memory: 512 * 1024 },
+    ],
+    unattributedMemory: 512 * 1024,
+    at: 1000,
+  };
+
+  const doc = {
+    documentElement: { lang: "zh-CN" },
+    visibilityState: "visible",
+    hidden: false,
+    getElementById(id) { assert(elements.has(id), "missing memory markup ID: " + id); return elements.get(id); },
+    createElement(tag) { return makeNode(tag, ""); },
+    addEventListener(type, fn) {
+      const list = docListeners.get(type) || [];
+      list.push(fn);
+      docListeners.set(type, list);
+    },
+  };
+  const win = {
+    addEventListener(type, fn) {
+      const list = winListeners.get(type) || [];
+      list.push(fn);
+      winListeners.set(type, list);
+    },
+  };
+
+  const context = {
+    document: doc,
+    window: win,
+    fetch(url) {
+      assert.equal(url, "/api/memory");
+      memoryFetches++;
+      return Promise.resolve({ json() { return Promise.resolve(detail); } });
+    },
+    setInterval(cb) {
+      const id = nextTimerID++;
+      timers.set(id, cb);
+      return id;
+    },
+    clearInterval(id) {
+      timers.delete(id);
+    },
+  };
+
+  vm.runInNewContext(fs.readFileSync(path.join(assets, "memory.js"), "utf8"), context);
+  const el = id => elements.get(id);
+
+  await flush();
+  assert.equal(memoryFetches, 1);
+  assert.equal(timers.size, 1);
+  assert.equal(el("detailMemUsed").textContent, "8.0");
+  assert.equal(el("detailMemTotal").textContent, "16");
+  assert.equal(el("appCount").textContent, "2 个应用");
+  assert.equal(el("appList").children.length, 2);
+  assert.equal(el("unattributedCard").hidden, false);
+  assert.equal(el("unattributedMem").textContent, "512 KB");
+  assert.equal(el("unattributedList").hidden, true);
+
+  const firstItem = el("appList").children[0];
+  const firstRow = firstItem.children[0];
+  const firstProcList = firstItem.children[1];
+  assert.equal(firstRow.getAttribute("aria-expanded"), "false");
+  assert.equal(firstProcList.hidden, true);
+  firstRow.click();
+  assert.equal(firstRow.getAttribute("aria-expanded"), "true");
+  assert.equal(firstProcList.hidden, false);
+
+  el("unattributedToggle").click();
+  assert.equal(el("unattributedToggle").getAttribute("aria-expanded"), "true");
+  assert.equal(el("unattributedList").hidden, false);
+
+  doc.documentElement.lang = "en";
+  const [activeTimer] = Array.from(timers.values());
+  activeTimer();
+  await flush();
+  assert.equal(memoryFetches, 2);
+  assert.equal(el("appCount").textContent, "2 apps");
+  assert.equal(el("appList").children[0].children[0].getAttribute("aria-expanded"), "true");
+  assert.equal(el("appList").children[0].children[1].hidden, false);
+  assert.equal(el("appList").children[1].children[0].getAttribute("aria-expanded"), "false");
+  assert.equal(el("unattributedList").hidden, false);
+
+  doc.visibilityState = "hidden";
+  doc.hidden = true;
+  for (const fn of docListeners.get("visibilitychange") || []) fn();
+  assert.equal(timers.size, 0, "polling must stop when the detail window becomes hidden");
+
+  doc.visibilityState = "visible";
+  doc.hidden = false;
+  for (const fn of docListeners.get("visibilitychange") || []) fn();
+  await flush();
+  assert.equal(memoryFetches, 3, "polling must resume immediately when visible again");
+  assert.equal(timers.size, 1);
+
+  for (const fn of winListeners.get("pagehide") || []) fn();
+  assert.equal(timers.size, 0, "polling must stop on pagehide");
+}
+
+async function check() {
+  await checkOverviewPanel();
+  await checkMemoryDetail();
+  console.log("Panel check passed: disk capacity, warnings, unavailable readings, recovery, resize, i18n, and memory details.");
 }
 
 check().catch(error => { console.error(error); process.exitCode = 1; });

@@ -227,6 +227,14 @@
     }
   });
 
+  $("memMetric").addEventListener("click", function () { post("/api/memory/open"); });
+  $("memMetric").addEventListener("keydown", function (e) {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      post("/api/memory/open");
+    }
+  });
+
   $("quit").addEventListener("click", function () { post("/api/quit"); });
 
   tick();

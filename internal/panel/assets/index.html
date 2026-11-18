@@ -50,9 +50,9 @@
       </div>
     </div>
 
-    <div class="metric mem">
+    <div class="metric mem" id="memMetric" role="button" tabindex="0" aria-label="{{.MemOpenDetail}}" title="{{.MemOpenDetail}}">
       <div class="head">
-        <span class="label">{{.Memory}}</span>
+        <span class="label">{{.Memory}} <svg class="chevron" viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="M4.25 2.25 8 6 4.25 9.75" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
         <span class="value"><span id="memUsed">–</span> <span class="of">/ <span id="memTotal">–</span> GB</span></span>
       </div>
       <svg class="area" width="288" height="40" viewBox="0 0 288 40" aria-hidden="true">

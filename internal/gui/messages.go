@@ -19,6 +19,8 @@ type guiMessages struct {
 	metricMemory    string
 	metricDisk      string
 
+	memoryWindowTitle string
+
 	loginTooltipDefault          string
 	loginTooltipRequiresApproval string
 	loginApprovalTitle           string
@@ -49,6 +51,8 @@ var guiMessagesZhCN = guiMessages{
 	metricMemory:    "内存",
 	metricDisk:      "硬盘",
 
+	memoryWindowTitle: "应用内存详情",
+
 	loginTooltipDefault:          "登录时自动启动 Pulsewise",
 	loginTooltipRequiresApproval: "已在系统设置中禁用，点击前往开启",
 	loginApprovalTitle:           "需要在系统设置中允许",
@@ -78,6 +82,8 @@ var guiMessagesEn = guiMessages{
 	trayUnavailable: "unavailable",
 	metricMemory:    "Memory",
 	metricDisk:      "Disk",
+
+	memoryWindowTitle: "App Memory Details",
 
 	loginTooltipDefault:          "Launch Pulsewise automatically at login",
 	loginTooltipRequiresApproval: "Disabled in System Settings. Click to enable.",

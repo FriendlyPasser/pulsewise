@@ -43,6 +43,30 @@ type MemPoint struct {
 	Compressed uint64 `json:"compressed"`
 }
 
+// ProcessMemory is one process's physical memory footprint in bytes.
+type ProcessMemory struct {
+	PID    int    `json:"pid"`
+	Name   string `json:"name"`
+	Memory uint64 `json:"memory"`
+}
+
+// AppMemory is an application and the processes attributed to it, ordered by
+// memory descending.
+type AppMemory struct {
+	Name      string          `json:"name"`
+	Memory    uint64          `json:"memory"`
+	Processes []ProcessMemory `json:"processes"`
+}
+
+// MemoryDetail is the per-application memory breakdown at a point in time.
+type MemoryDetail struct {
+	Memory             Memory          `json:"memory"`
+	Apps               []AppMemory     `json:"apps"`
+	Unattributed       []ProcessMemory `json:"unattributed"`
+	UnattributedMemory uint64          `json:"unattributedMemory"`
+	At                 int64           `json:"at"`
+}
+
 // Disk is the startup data volume's capacity in bytes. Total is zero when
 // unavailable. Used includes space unavailable to the current user.
 type Disk struct {
