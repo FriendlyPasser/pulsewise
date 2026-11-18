@@ -24,7 +24,7 @@
 - **Dropdown panel**: left-click the icon to open it. CPU and GPU come with a sparkline of the last 17 seconds.
   - CPU: user / system / idle
   - GPU: utilization, model, core count
-  - Memory: split the way Activity Monitor splits it (App, wired, compressed), plus swap
+  - Memory: split the way Activity Monitor splits it (App, wired, compressed), plus swap; click the memory section to open a detail window ranking apps with helper processes merged and expandable
   - Disk: startup disk used, available and total capacity, plus usage, refreshed every second. The capacity bar warns at 90% usage. Hover over the menu bar icon to see disk usage too.
 - **Stays out of the way**: no Dock icon, not in ⌘Tab. The panel doesn't take focus, hides when it loses focus or on Esc, and opens on any Space, including over full-screen apps.
 - **Light, no permissions**: samples through system APIs directly. No root, no background service.

@@ -49,6 +49,10 @@ for snapshot := range sampler.Subscribe(ctx) {
 
 容量属于当前状态，沿用已有采样循环，无需增加后台任务或独立状态缓存。面板以十进制 GB、TB 展示容量，使用率达到 90% 时容量条变色。容量没有秒级历史曲线，菜单栏悬停提示显示其使用率。
 
+应用内存占用详情按需在独立窗口中展示，不进入每秒一次的 `Snapshot` 采样循环。用户点击总览面板的内存区域时，页面请求 `POST /api/memory/open`，原生宿主按需创建名为 `memory` 的标准 Wails 窗口加载 `/memory.html`；关闭窗口时由 Wails 销毁窗口实例，重新打开再创建，避免后台常驻 WebView。详情页仅在 `document.visibilityState` 可见时每秒请求 `GET /api/memory`，页面隐藏或关闭后立即停止轮询。
+
+进程内存统计在 `internal/stats` 中按 macOS“活动监视器”口径读取当前用户进程的物理内存占用（`proc_pid_rusage` 的 `ri_phys_footprint`），无需 root 权限。多进程合并依次依据可执行文件路径最外层 `.app` / `.app.bundle` 名称（覆盖嵌套 helper 与 Chromium `code_sign_clone`）、macOS `responsibility_get_pid_responsible_for_pid` 责任进程（覆盖由 `launchd` 拉起的 WebKit/AppKit XPC 服务）及父进程 `ppid` 链（覆盖子命令行进程）。仍无法归属到 `.app` 包的当前用户进程归入 `unattributed`，并在页面说明中标明其他系统账户进程与内核联动内存因权限边界不纳入单进程列表。
+
 菜单栏显示偏好由 `gui` 管理。右键菜单“菜单栏显示”选择 1 到 4 项监控，默认 CPU、GPU、内存，三柱恢复原来的柱宽。监控定义统一管理保存键名、菜单标签、取值和排列顺序，图标与悬停提示只显示已选项目。详情面板继续显示全部监控。
 
 偏好保存在 `os.UserConfigDir()/Pulsewise/tray.json`，先写同目录临时文件再重命名。不存在时使用默认值；内容无效或读取失败时回退到默认值并记录错误。保存失败时保留先前选择并提示用户。启动完成后，选择状态、设置写入和图标刷新都在原生 UI 线程上执行，采样协程只提交快照。

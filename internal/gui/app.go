@@ -10,6 +10,7 @@ import (
 	"github.com/FriendlyPasser/pulsewise/internal/stats"
 	"github.com/FriendlyPasser/pulsewise/internal/update"
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
 // panelWidth is the design's 340px panel plus the room its shadow takes.
@@ -19,15 +20,37 @@ const (
 )
 
 type host struct {
-	app   *application.App
-	panel *application.WebviewWindow
+	app               *application.App
+	panel             *application.WebviewWindow
+	memoryWindowTitle string
 }
 
 func (h *host) FitPanel(height int) {
 	application.InvokeSync(func() { h.panel.SetSize(panelWidth, height) })
 }
 
-func (h *host) OpenMemory() {}
+func (h *host) OpenMemory() {
+	application.InvokeAsync(func() {
+		if h.panel != nil && h.panel.IsVisible() {
+			h.panel.Hide()
+		}
+		if w, ok := h.app.Window.GetByName("memory"); ok && w != nil {
+			w.Restore()
+			w.Show()
+			w.Focus()
+			return
+		}
+		win := h.app.Window.NewWithOptions(memoryWindowOptions(h.memoryWindowTitle))
+		win.OnWindowEvent(events.Mac.WebViewDidFinishNavigation, func(_ *application.WindowEvent) {
+			application.InvokeAsync(func() {
+				win.Show()
+				win.Focus()
+			})
+		})
+		win.Show()
+		win.Focus()
+	})
+}
 
 func (h *host) Quit() { h.app.Quit() }
 
@@ -52,7 +75,7 @@ func Run() error {
 		log.Println("pulsewise: tray preferences:", err)
 	}
 
-	h := &host{}
+	h := &host{memoryWindowTitle: msg.memoryWindowTitle}
 	h.app = application.New(application.Options{
 		Name:        "Pulsewise",
 		Description: "CPU, GPU, memory and disk capacity in the menu bar",
@@ -177,5 +200,18 @@ func panelOptions() application.WebviewWindowOptions {
 			// the page draws the shadow; a window shadow would box it
 			DisableShadow: true,
 		},
+	}
+}
+
+func memoryWindowOptions(title string) application.WebviewWindowOptions {
+	return application.WebviewWindowOptions{
+		Name:            "memory",
+		Title:           title,
+		URL:             "/memory.html",
+		Width:           460,
+		Height:          560,
+		MinWidth:        380,
+		MinHeight:       400,
+		InitialPosition: application.WindowCentered,
 	}
 }
