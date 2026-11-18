@@ -134,7 +134,16 @@ body {
 .metric:last-child { border-bottom: 0; }
 .metric.cpu { --tone: var(--cpu); }
 .metric.gpu { --tone: var(--gpu); }
-.metric.mem { --tone: var(--mem); }
+.metric.mem {
+  --tone: var(--mem);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.metric.mem:hover { background: color-mix(in srgb, var(--mem) 7%, transparent); }
+.metric.mem:focus-visible { outline: 2px solid var(--mem); outline-offset: -2px; }
+.metric.mem .label { display: inline-flex; align-items: center; gap: 4px; }
+.metric.mem .chevron { color: var(--muted); transition: transform 0.15s, color 0.15s; }
+.metric.mem:hover .chevron { color: var(--mem); transform: translateX(1px); }
 .metric.disk { --tone: var(--disk); }
 
 .head { display: flex; justify-content: space-between; align-items: baseline; }
@@ -212,3 +221,164 @@ body {
   cursor: default;
 }
 .quit:hover { color: var(--text); background: var(--hover); }
+
+body.detail-body {
+  padding: 16px;
+  background: var(--panel);
+  min-height: 100vh;
+}
+
+.detail {
+  max-width: 560px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.detail-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.detail-head .brand { padding: 0; }
+.detail-total { --tone: var(--mem); font-size: 18px; }
+
+.detail-summary { padding: 10px 12px; }
+.detail-section { overflow: hidden; }
+
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--card-edge);
+}
+
+.section-title { font-size: 13px; font-weight: 600; }
+.section-meta { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.app-list { display: flex; flex-direction: column; }
+.app-item { border-bottom: 1px solid var(--card-edge); }
+.app-item:last-child { border-bottom: 0; }
+
+.app-row {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.app-row:hover { background: var(--hover); }
+.app-row:focus-visible { outline: 2px solid var(--mem); outline-offset: -2px; }
+
+.unattributed-toggle {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.app-row-top {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.app-main {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.row-chevron {
+  display: inline-block;
+  width: 10px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1;
+  transition: transform 0.14s;
+}
+
+.expanded > .app-row .row-chevron { transform: rotate(90deg); color: var(--mem); }
+.app-name { font-size: 13px; font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-procs { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.app-mem { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--mem); white-space: nowrap; }
+
+.app-bar {
+  display: block;
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--track);
+  overflow: hidden;
+}
+
+.app-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--mem);
+  transition: width 0.25s ease;
+}
+
+.proc-list {
+  padding: 4px 14px 10px 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  border-top: 1px solid var(--card-edge);
+  background: color-mix(in srgb, var(--track) 55%, transparent);
+}
+.proc-list[hidden] { display: none; }
+
+.proc-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.proc-info {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.proc-name { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.proc-pid { color: var(--muted); font-size: 10.5px; white-space: nowrap; }
+.proc-mem { color: var(--muted); white-space: nowrap; }
+
+.empty-state {
+  padding: 18px 14px;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.mem-notes {
+  padding: 2px 4px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--muted);
+  -webkit-user-select: text;
+  user-select: text;
+}
+.mem-notes p { margin: 0; }

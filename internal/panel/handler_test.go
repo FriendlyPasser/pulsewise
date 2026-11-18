@@ -14,16 +14,22 @@ import (
 	"github.com/FriendlyPasser/pulsewise/internal/update"
 )
 
-type fixedSnapshots struct{ snapshot stats.Snapshot }
+type fixedSnapshots struct {
+	snapshot stats.Snapshot
+	detail   stats.MemoryDetail
+}
 
-func (s fixedSnapshots) Latest() stats.Snapshot { return s.snapshot }
+func (s fixedSnapshots) Latest() stats.Snapshot           { return s.snapshot }
+func (s fixedSnapshots) MemoryDetail() stats.MemoryDetail { return s.detail }
 
 type testHost struct {
-	height int
-	quit   chan struct{}
+	height     int
+	openMemory int
+	quit       chan struct{}
 }
 
 func (h *testHost) FitPanel(height int) { h.height = height }
+func (h *testHost) OpenMemory()         { h.openMemory++ }
 func (h *testHost) Quit()               { h.quit <- struct{}{} }
 
 type testUpdates struct {
@@ -52,7 +58,7 @@ func TestStateContract(t *testing.T) {
 		GPU: stats.GPU{Usage: -1}, Memory: stats.Memory{Total: 1024, Used: 512}, At: 1234,
 		Disk: stats.Disk{Total: 1000, Used: 750, Available: 250},
 	}
-	h := Handler(&testHost{}, fixedSnapshots{want}, nil, LocaleZhCN)
+	h := Handler(&testHost{}, fixedSnapshots{snapshot: want}, nil, LocaleZhCN)
 	rw := request(h, "GET", "/api/state", "")
 	var got stats.Snapshot
 	if err := json.Unmarshal(rw.Body.Bytes(), &got); err != nil {
@@ -63,6 +69,44 @@ func TestStateContract(t *testing.T) {
 	}
 	if rw.Header().Get("Content-Type") != "application/json" || rw.Header().Get("Cache-Control") != "no-store" {
 		t.Fatalf("headers = %v", rw.Header())
+	}
+}
+
+func TestMemoryDetailContractAndOpen(t *testing.T) {
+	want := stats.MemoryDetail{
+		Memory: stats.Memory{Total: 16 << 30, Used: 8 << 30, App: 4 << 30, Wired: 2 << 30, Compressed: 2 << 30},
+		Apps: []stats.AppMemory{
+			{
+				Name:   "Google Chrome",
+				Memory: 3 << 30,
+				Processes: []stats.ProcessMemory{
+					{PID: 10, Name: "Google Chrome", Memory: 1 << 30},
+					{PID: 11, Name: "Google Chrome Helper", Memory: 2 << 30},
+				},
+			},
+		},
+		Unattributed:       []stats.ProcessMemory{{PID: 20, Name: "sharingd", Memory: 64 << 20}},
+		UnattributedMemory: 64 << 20,
+		At:                 5678,
+	}
+	host := &testHost{}
+	h := Handler(host, fixedSnapshots{detail: want}, nil, LocaleEn)
+
+	rw := request(h, "GET", "/api/memory", "")
+	var got stats.MemoryDetail
+	if err := json.Unmarshal(rw.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if rw.Code != http.StatusOK || !reflect.DeepEqual(got, want) {
+		t.Fatalf("response %d: %+v", rw.Code, got)
+	}
+	if rw.Header().Get("Content-Type") != "application/json" || rw.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("headers = %v", rw.Header())
+	}
+
+	openRW := request(h, "POST", "/api/memory/open", "")
+	if openRW.Code != http.StatusNoContent || host.openMemory != 1 {
+		t.Fatalf("open status %d, calls %d", openRW.Code, host.openMemory)
 	}
 }
 
@@ -85,11 +129,73 @@ func TestFitValidatesAtHTTPBoundary(t *testing.T) {
 
 func TestEmbeddedAssets(t *testing.T) {
 	h := Handler(&testHost{}, fixedSnapshots{}, nil, LocaleZhCN)
-	for path, text := range map[string]string{"/": "cpuValue", "/index.html": "cpuValue", "/app.js": "/api/state", "/app.css": "--panel"} {
+	for path, text := range map[string]string{
+		"/":            "memMetric",
+		"/index.html":  "cpuValue",
+		"/memory":      "appList",
+		"/memory.html": "unattributedList",
+		"/app.js":      "/api/state",
+		"/memory.js":   "/api/memory",
+		"/app.css":     "--panel",
+	} {
 		rw := request(h, "GET", path, "")
 		if rw.Code != http.StatusOK || !strings.Contains(rw.Body.String(), text) {
 			t.Fatalf("asset %s: status %d", path, rw.Code)
 		}
+	}
+}
+
+func TestLocalizedMemoryHTML(t *testing.T) {
+	cases := []struct {
+		name    string
+		loc     Locale
+		want    []string
+		notWant []string
+	}{
+		{
+			name:    "simplified chinese",
+			loc:     LocaleZhCN,
+			want:    []string{`<html lang="zh-CN">`, "应用内存详情", "应用占用", "未归属应用的进程", "phys_footprint"},
+			notWant: []string{`<html lang="en">`, "App Memory Details", "Unattributed Processes"},
+		},
+		{
+			name:    "english",
+			loc:     LocaleEn,
+			want:    []string{`<html lang="en">`, "App Memory Details", "Applications", "Unattributed Processes", "phys_footprint"},
+			notWant: []string{`<html lang="zh-CN">`, "应用内存详情", "未归属应用的进程"},
+		},
+		{
+			name:    "unknown locale defaults to english",
+			loc:     Locale("fr"),
+			want:    []string{`<html lang="en">`, "App Memory Details", "Unattributed Processes"},
+			notWant: []string{`<html lang="zh-CN">`, "应用内存详情"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			h := Handler(&testHost{}, fixedSnapshots{}, nil, tc.loc)
+			for _, path := range []string{"/memory", "/memory.html"} {
+				rw := request(h, "GET", path, "")
+				if rw.Code != http.StatusOK {
+					t.Fatalf("%s %s: status %d", tc.name, path, rw.Code)
+				}
+				if ct := rw.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/html") {
+					t.Fatalf("%s %s: Content-Type = %q", tc.name, path, ct)
+				}
+				body := rw.Body.String()
+				for _, s := range tc.want {
+					if !strings.Contains(body, s) {
+						t.Errorf("%s %s: missing %q", tc.name, path, s)
+					}
+				}
+				for _, s := range tc.notWant {
+					if strings.Contains(body, s) {
+						t.Errorf("%s %s: unexpected %q", tc.name, path, s)
+					}
+				}
+			}
+		})
 	}
 }
 

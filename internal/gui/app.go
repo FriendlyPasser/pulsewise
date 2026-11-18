@@ -27,6 +27,8 @@ func (h *host) FitPanel(height int) {
 	application.InvokeSync(func() { h.panel.SetSize(panelWidth, height) })
 }
 
+func (h *host) OpenMemory() {}
+
 func (h *host) Quit() { h.app.Quit() }
 
 // Run starts the app and blocks until it quits.

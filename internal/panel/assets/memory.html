@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="{{.Lang}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.MemDetailTitle}}</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body class="detail-body">
+<main class="detail">
+  <header class="detail-head">
+    <div class="brand">
+      <svg class="logo" width="20" height="20" viewBox="0 0 512 512" aria-hidden="true">
+        <rect class="logo-ground" x="4" y="4" width="504" height="504" rx="113"/>
+        <rect x="128" y="300" width="64" height="112" rx="16" fill="#B4B4BA"/>
+        <rect x="224" y="220" width="64" height="192" rx="16" fill="#B4B4BA"/>
+        <rect x="320" y="160" width="64" height="252" rx="16" fill="#B4B4BA"/>
+        <polyline points="84,290 176,290 206,214 248,372 290,150 322,290 428,290" fill="none" stroke="#FFFFFF" stroke-width="44" stroke-linejoin="round" stroke-linecap="round"/>
+        <polyline points="84,290 176,290 206,214 248,372 290,150 322,290 428,290" fill="none" stroke="#0E0E10" stroke-width="22" stroke-linejoin="round" stroke-linecap="round"/>
+      </svg>
+      <span class="name">{{.MemDetailTitle}}</span>
+    </div>
+    <span class="value detail-total"><span id="detailMemUsed">–</span> <span class="of">/ <span id="detailMemTotal">–</span> GB</span></span>
+  </header>
+
+  <section class="card detail-summary">
+    <div class="chips wrap">
+      <span class="chip"><span class="k">{{.MemApp}}</span> <span id="detailMemApp">–</span></span>
+      <span class="chip"><span class="k">{{.MemWired}}</span> <span id="detailMemWired">–</span></span>
+      <span class="chip"><span class="k">{{.MemComp}}</span> <span id="detailMemComp">–</span></span>
+      <span class="chip"><span class="k">{{.MemSwap}}</span> <span id="detailMemSwap">–</span></span>
+    </div>
+  </section>
+
+  <section class="card detail-section">
+    <div class="section-head">
+      <span class="section-title">{{.MemAppsHeading}}</span>
+      <span class="section-meta" id="appCount">–</span>
+    </div>
+    <div class="app-list" id="appList"></div>
+  </section>
+
+  <section class="card detail-section" id="unattributedCard" hidden>
+    <button type="button" class="app-row unattributed-toggle" id="unattributedToggle" aria-expanded="false">
+      <span class="app-main">
+        <span class="row-chevron" aria-hidden="true">›</span>
+        <span class="app-name">{{.MemUnattributedHeading}}</span>
+        <span class="app-procs" id="unattributedCount">0</span>
+      </span>
+      <span class="app-mem" id="unattributedMem">–</span>
+    </button>
+    <div class="proc-list" id="unattributedList" hidden></div>
+  </section>
+
+  <footer class="mem-notes" id="memNotes">
+    <p>{{.MemNoteBasis}}</p>
+    <p>{{.MemNoteAttribution}}</p>
+    <p>{{.MemNoteUnattributed}}</p>
+  </footer>
+</main>
+<script src="memory.js"></script>
+</body>
+</html>

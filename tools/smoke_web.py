@@ -80,8 +80,9 @@ def check(binary):
             with request("/api/update") as response:
                 assert json.load(response)["state"] == "off"
             for path, expected in (
-                ("/", b"cpuValue"), ("/app.js", b"/api/state"),
-                ("/app.css", b"--panel"),
+                ("/", b"cpuValue"), ("/memory", b"appList"),
+                ("/memory.html", b"unattributedList"), ("/app.js", b"/api/state"),
+                ("/memory.js", b"/api/memory"), ("/app.css", b"--panel"),
             ):
                 with request(path) as response:
                     asset = response.read()
@@ -89,6 +90,31 @@ def check(binary):
                     if path == "/":
                         assert b'diskValue' in asset
                         assert b'diskMeter' in asset
+                        assert b'memMetric' in asset
+
+            with request("/api/memory") as response:
+                assert response.headers["Cache-Control"] == "no-store"
+                detail = json.load(response)
+            assert detail["at"] > 0
+            assert detail["memory"]["total"] > 0
+            apps = detail["apps"]
+            unattributed = detail["unattributed"]
+            assert len(apps) + len(unattributed) > 0
+            for i in range(len(apps) - 1):
+                assert apps[i]["memory"] >= apps[i + 1]["memory"]
+            for app in apps:
+                assert app["name"]
+                procs = app["processes"]
+                assert len(procs) > 0
+                assert sum(p["memory"] for p in procs) == app["memory"]
+                for i in range(len(procs) - 1):
+                    assert procs[i]["memory"] >= procs[i + 1]["memory"]
+            assert sum(p["memory"] for p in unattributed) == detail["unattributedMemory"]
+            for i in range(len(unattributed) - 1):
+                assert unattributed[i]["memory"] >= unattributed[i + 1]["memory"]
+
+            with request("/api/memory/open", {}) as response:
+                assert response.status == 204
             with request("/api/fit", {"height": 440}) as response:
                 assert response.status == 204
             try:
