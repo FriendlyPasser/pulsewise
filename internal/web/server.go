@@ -17,6 +17,7 @@ type host struct{ quit context.CancelFunc }
 
 func (host) FitPanel(int) {} // A browser has no native panel to resize.
 func (host) OpenMemory()  {} // The browser user can open /memory directly.
+func (host) OpenDisk()    {} // The browser user can open /disk directly.
 func (h host) Quit()      { h.quit() }
 
 // Serve runs until the panel requests a quit or the server fails.
@@ -30,7 +31,8 @@ func Serve(addr string) error {
 	defer cancel()
 	sampler := stats.NewSampler(time.Second)
 	go sampler.Run(ctx)
-	srv := &http.Server{Handler: panel.Handler(host{quit: cancel}, sampler, nil, panel.SystemLocale())}
+	diskScanner := stats.NewDiskScanner(ctx)
+	srv := &http.Server{Handler: panel.Handler(host{quit: cancel}, sampler, diskScanner, nil, panel.SystemLocale())}
 	shutdownDone := make(chan struct{})
 	defer func() {
 		cancel()

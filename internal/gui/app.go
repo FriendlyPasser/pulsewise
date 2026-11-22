@@ -3,7 +3,12 @@ package gui
 
 import (
 	"context"
+	"errors"
 	"log"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/FriendlyPasser/pulsewise/internal/panel"
@@ -23,33 +28,90 @@ type host struct {
 	app               *application.App
 	panel             *application.WebviewWindow
 	memoryWindowTitle string
+	diskWindowTitle   string
+	chooseFolderTitle string
+	chooseFolderBtn   string
+	diskScanner       *stats.DiskScanner
+	revealFn          func(string) error
 }
 
 func (h *host) FitPanel(height int) {
 	application.InvokeSync(func() { h.panel.SetSize(panelWidth, height) })
 }
 
-func (h *host) OpenMemory() {
+func (h *host) openDetailWindow(name string, opts application.WebviewWindowOptions, onClose func()) {
 	application.InvokeAsync(func() {
 		if h.panel != nil && h.panel.IsVisible() {
 			h.panel.Hide()
 		}
-		if w, ok := h.app.Window.GetByName("memory"); ok && w != nil {
+		if w, ok := h.app.Window.GetByName(name); ok && w != nil {
 			w.Restore()
 			w.Show()
 			w.Focus()
 			return
 		}
-		win := h.app.Window.NewWithOptions(memoryWindowOptions(h.memoryWindowTitle))
+		win := h.app.Window.NewWithOptions(opts)
 		win.OnWindowEvent(events.Mac.WebViewDidFinishNavigation, func(_ *application.WindowEvent) {
 			application.InvokeAsync(func() {
 				win.Show()
 				win.Focus()
 			})
 		})
+		if onClose != nil {
+			win.OnWindowEvent(events.Mac.WindowWillClose, func(_ *application.WindowEvent) {
+				onClose()
+			})
+		}
 		win.Show()
 		win.Focus()
 	})
+}
+
+func (h *host) OpenMemory() {
+	h.openDetailWindow("memory", memoryWindowOptions(h.memoryWindowTitle), nil)
+}
+
+func (h *host) OpenDisk() {
+	h.openDetailWindow("disk", diskWindowOptions(h.diskWindowTitle), func() {
+		if h.diskScanner != nil {
+			h.diskScanner.Cancel()
+		}
+	})
+}
+
+func (h *host) ChooseDiskDirectory(initial string) (string, bool, error) {
+	dlg := h.app.Dialog.OpenFile().
+		CanChooseFiles(false).
+		CanChooseDirectories(true).
+		CanCreateDirectories(false).
+		SetTitle(h.chooseFolderTitle).
+		SetMessage(h.chooseFolderTitle).
+		SetButtonText(h.chooseFolderBtn)
+	if initial != "" {
+		if info, err := os.Stat(initial); err == nil && info.IsDir() {
+			dlg.SetDirectory(initial)
+		}
+	}
+	if w, ok := h.app.Window.GetByName("disk"); ok && w != nil {
+		dlg.AttachToWindow(w)
+	}
+	path, err := dlg.PromptForSingleSelection()
+	return path, path == "", err
+}
+
+func (h *host) RevealInFinder(path string) error {
+	reveal := h.revealFn
+	if reveal == nil {
+		reveal = revealInFinder
+	}
+	return reveal(path)
+}
+
+func revealInFinder(path string) error {
+	if !filepath.IsAbs(path) || strings.ContainsRune(path, 0) {
+		return errors.New("invalid path")
+	}
+	return exec.Command("/usr/bin/open", "-R", path).Run()
 }
 
 func (h *host) Quit() { h.app.Quit() }
@@ -65,6 +127,7 @@ func Run() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	sampler := stats.NewSampler(time.Second)
+	diskScanner := stats.NewDiskScanner(ctx)
 	updater := update.New(ctx, update.WithAdminPrompt(msg.adminUpdatePrompt))
 	selected := defaultTrayMetrics
 	preferencesPath, err := trayPreferencesPath()
@@ -75,11 +138,17 @@ func Run() error {
 		log.Println("pulsewise: tray preferences:", err)
 	}
 
-	h := &host{memoryWindowTitle: msg.memoryWindowTitle}
+	h := &host{
+		memoryWindowTitle: msg.memoryWindowTitle,
+		diskWindowTitle:   msg.diskWindowTitle,
+		chooseFolderTitle: msg.chooseFolderTitle,
+		chooseFolderBtn:   msg.chooseFolderBtn,
+		diskScanner:       diskScanner,
+	}
 	h.app = application.New(application.Options{
 		Name:        "Pulsewise",
 		Description: "CPU, GPU, memory and disk capacity in the menu bar",
-		Assets:      application.AssetOptions{Handler: panel.Handler(h, sampler, updater, loc)},
+		Assets:      application.AssetOptions{Handler: panel.Handler(h, sampler, diskScanner, updater, loc)},
 		// a version downloaded and not restarted into goes in on the way
 		// out, so the next launch is the new one
 		OnShutdown: func() {
@@ -212,6 +281,19 @@ func memoryWindowOptions(title string) application.WebviewWindowOptions {
 		Height:          560,
 		MinWidth:        380,
 		MinHeight:       400,
+		InitialPosition: application.WindowCentered,
+	}
+}
+
+func diskWindowOptions(title string) application.WebviewWindowOptions {
+	return application.WebviewWindowOptions{
+		Name:            "disk",
+		Title:           title,
+		URL:             "/disk.html",
+		Width:           580,
+		Height:          620,
+		MinWidth:        460,
+		MinHeight:       440,
 		InitialPosition: application.WindowCentered,
 	}
 }

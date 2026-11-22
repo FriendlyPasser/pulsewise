@@ -20,6 +20,9 @@ type guiMessages struct {
 	metricDisk      string
 
 	memoryWindowTitle string
+	diskWindowTitle   string
+	chooseFolderTitle string
+	chooseFolderBtn   string
 
 	loginTooltipDefault          string
 	loginTooltipRequiresApproval string
@@ -52,6 +55,9 @@ var guiMessagesZhCN = guiMessages{
 	metricDisk:      "硬盘",
 
 	memoryWindowTitle: "应用内存详情",
+	diskWindowTitle:   "磁盘大文件详情",
+	chooseFolderTitle: "选择要扫描的目录",
+	chooseFolderBtn:   "选择",
 
 	loginTooltipDefault:          "登录时自动启动 Pulsewise",
 	loginTooltipRequiresApproval: "已在系统设置中禁用，点击前往开启",
@@ -84,6 +90,9 @@ var guiMessagesEn = guiMessages{
 	metricDisk:      "Disk",
 
 	memoryWindowTitle: "App Memory Details",
+	diskWindowTitle:   "Large Disk Files",
+	chooseFolderTitle: "Choose a Folder to Scan",
+	chooseFolderBtn:   "Choose",
 
 	loginTooltipDefault:          "Launch Pulsewise automatically at login",
 	loginTooltipRequiresApproval: "Disabled in System Settings. Click to enable.",

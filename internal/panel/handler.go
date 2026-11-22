@@ -19,7 +19,15 @@ var assets embed.FS
 type Host interface {
 	FitPanel(height int)
 	OpenMemory()
+	OpenDisk()
 	Quit()
+}
+
+// DiskUI is optionally implemented by native hosts that support directory
+// selection dialogs and revealing files in Finder.
+type DiskUI interface {
+	ChooseDiskDirectory(initial string) (path string, cancelled bool, err error)
+	RevealInFinder(path string) error
 }
 
 type SnapshotSource interface {
@@ -27,21 +35,28 @@ type SnapshotSource interface {
 	MemoryDetail() stats.MemoryDetail
 }
 
-// Handler serves the panel and memory detail pages from embedded assets and
-// their JSON API:
+// Handler serves the panel, memory detail, and disk large-file pages from
+// embedded assets and their JSON API:
 //
 //	GET  /api/state        the latest sample
 //	GET  /api/memory       per-application memory breakdown
 //	POST /api/memory/open  opens the application memory detail window
+//	GET  /api/disk         system disk capacity, presets, and latest large-file scan
+//	POST /api/disk/open    opens the disk large-file detail window
+//	POST /api/disk/scan    starts an on-demand large-file scan
+//	POST /api/disk/cancel  cancels the running large-file scan
+//	POST /api/disk/choose  opens a native directory picker (native host only)
+//	POST /api/disk/reveal  reveals a scanned file in Finder (native host only)
 //	POST /api/fit          {height}: the panel is sized to the page
 //	POST /api/quit         quits the app
 //
-// Updates is optional. Without it, status is off and update commands are absent.
-func Handler(w Host, s SnapshotSource, u Updates, loc Locale) http.Handler {
+// Updates and DiskScanner are optional; DiskUI is optional via Host type assertion.
+func Handler(w Host, s SnapshotSource, d DiskScanner, u Updates, loc Locale) http.Handler {
 	tmpl := template.Must(template.ParseFS(assets, "assets/*.html"))
 	msg := messagesForLocale(loc)
 	indexHTML := renderHTML(tmpl, "index.html", msg)
 	memoryHTML := renderHTML(tmpl, "memory.html", msg)
+	diskHTML := renderHTML(tmpl, "disk.html", msg)
 
 	serveHTML := func(body []byte) http.HandlerFunc {
 		return func(rw http.ResponseWriter, _ *http.Request) {
@@ -56,6 +71,8 @@ func Handler(w Host, s SnapshotSource, u Updates, loc Locale) http.Handler {
 	mux.HandleFunc("GET /index.html", serveHTML(indexHTML))
 	mux.HandleFunc("GET /memory", serveHTML(memoryHTML))
 	mux.HandleFunc("GET /memory.html", serveHTML(memoryHTML))
+	mux.HandleFunc("GET /disk", serveHTML(diskHTML))
+	mux.HandleFunc("GET /disk.html", serveHTML(diskHTML))
 	mux.Handle("/", http.FileServerFS(sub))
 	mux.HandleFunc("GET /api/state", func(rw http.ResponseWriter, _ *http.Request) {
 		writeJSON(rw, s.Latest())
@@ -65,6 +82,10 @@ func Handler(w Host, s SnapshotSource, u Updates, loc Locale) http.Handler {
 	})
 	mux.HandleFunc("POST /api/memory/open", func(rw http.ResponseWriter, _ *http.Request) {
 		w.OpenMemory()
+		rw.WriteHeader(http.StatusNoContent)
+	})
+	mux.HandleFunc("POST /api/disk/open", func(rw http.ResponseWriter, _ *http.Request) {
+		w.OpenDisk()
 		rw.WriteHeader(http.StatusNoContent)
 	})
 	mux.HandleFunc("POST /api/fit", func(rw http.ResponseWriter, r *http.Request) {
@@ -82,6 +103,8 @@ func Handler(w Host, s SnapshotSource, u Updates, loc Locale) http.Handler {
 		rw.WriteHeader(http.StatusNoContent)
 		go w.Quit()
 	})
+	diskUI, _ := w.(DiskUI)
+	registerDisk(mux, s, d, diskUI)
 	registerUpdates(mux, u, w.Quit)
 	return mux
 }
