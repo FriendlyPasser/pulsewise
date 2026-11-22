@@ -15,6 +15,8 @@ function makeNode(tag, id) {
   const node = {
     tagName: tag.toUpperCase(),
     id: id || "",
+    value: "",
+    disabled: false,
     style: {},
     dataset: {},
     title: "",
@@ -79,6 +81,7 @@ async function checkOverviewPanel() {
   let tick;
   let fits = 0;
   let memoryOpens = 0;
+  let diskOpens = 0;
 
   const context = {
     document: {
@@ -89,6 +92,7 @@ async function checkOverviewPanel() {
     fetch(url) {
       if (url === "/api/fit") fits++;
       if (url === "/api/memory/open") memoryOpens++;
+      if (url === "/api/disk/open") diskOpens++;
       const state = url === "/api/update" ? updateStatus : {
         cpu: { usage: 20, user: 15, system: 5, idle: 80 },
         gpu: { usage: -1 },
@@ -123,6 +127,16 @@ async function checkOverviewPanel() {
   await flush();
   assert.equal(prevented, true);
   assert.equal(memoryOpens, 2, "pressing Enter on the memory section must open the detail window");
+
+  el("diskMetric").click();
+  await flush();
+  assert.equal(diskOpens, 1, "clicking the disk section must open the disk detail window");
+
+  let diskPrevented = false;
+  el("diskMetric").dispatchEvent("keydown", { key: "Enter", preventDefault() { diskPrevented = true; } });
+  await flush();
+  assert.equal(diskPrevented, true);
+  assert.equal(diskOpens, 2, "pressing Enter on the disk section must open the disk detail window");
 
   for (const [used, expected, warning] of [[899e9, "90%", false], [900e9, "90%", true], [1e12, "100%", true], [0, "0%", false]]) {
     disk = { total: 1e12, used, available: 1e12 - used };
@@ -337,10 +351,288 @@ async function checkMemoryDetail() {
   assert.equal(timers.size, 0, "polling must stop on pagehide");
 }
 
+async function checkDiskDetail() {
+  const elements = collectElements("disk.html");
+  const docListeners = new Map();
+  const winListeners = new Map();
+  const timers = new Map();
+  let nextTimerID = 1;
+  let diskFetches = 0;
+  const requests = [];
+
+  let diskState = {
+    disk: { total: 1e12, used: 750e9, available: 250e9 },
+    defaultRoot: "/Users/demo/Downloads",
+    presets: [
+      { id: "downloads", path: "/Users/demo/Downloads" },
+      { id: "desktop", path: "/Users/demo/Desktop" },
+      { id: "home", path: "/Users/demo" },
+    ],
+    capabilities: { chooseDir: true, reveal: true },
+    scan: {
+      id: 0,
+      state: "idle",
+      root: "",
+      elapsedMs: 0,
+      scannedFiles: 0,
+      scannedDirs: 0,
+      scannedBytes: 0,
+      skippedDirs: 0,
+      skippedSamples: [],
+      incomplete: false,
+      truncated: false,
+      files: [],
+      limit: 100,
+    },
+  };
+
+  let nextScanResponse = null;
+  let nextScanError = null;
+  let deferredDiskFetch = null;
+  let nextChooseResponse = { path: "/Users/demo/Projects", cancelled: false };
+  let nextCancelResponse = null;
+
+  const doc = {
+    documentElement: { lang: "zh-CN" },
+    visibilityState: "visible",
+    hidden: false,
+    getElementById(id) { assert(elements.has(id), "missing disk markup ID: " + id); return elements.get(id); },
+    createElement(tag) { return makeNode(tag, ""); },
+    addEventListener(type, fn) {
+      const list = docListeners.get(type) || [];
+      list.push(fn);
+      docListeners.set(type, list);
+    },
+  };
+  const win = {
+    addEventListener(type, fn) {
+      const list = winListeners.get(type) || [];
+      list.push(fn);
+      winListeners.set(type, list);
+    },
+  };
+
+  const context = {
+    document: doc,
+    window: win,
+    fetch(url, opts) {
+      const body = opts && opts.body ? JSON.parse(opts.body) : null;
+      requests.push({ url, method: (opts && opts.method) || "GET", body });
+      if (url === "/api/disk") {
+        diskFetches++;
+        if (deferredDiskFetch) {
+          const resolveDeferred = deferredDiskFetch;
+          deferredDiskFetch = null;
+          return new Promise(resolve => { resolveDeferred(() => resolve({ ok: true, json() { return Promise.resolve(diskState); } })); });
+        }
+        return Promise.resolve({ ok: true, json() { return Promise.resolve(diskState); } });
+      }
+      if (url === "/api/disk/scan") {
+        if (nextScanError) {
+          const errPayload = JSON.stringify(nextScanError);
+          nextScanError = null;
+          return Promise.resolve({ ok: false, text() { return Promise.resolve(errPayload); } });
+        }
+        return Promise.resolve({ ok: true, json() { return Promise.resolve(nextScanResponse); } });
+      }
+      if (url === "/api/disk/choose") {
+        return Promise.resolve({ ok: true, json() { return Promise.resolve(nextChooseResponse); } });
+      }
+      if (url === "/api/disk/cancel") {
+        return Promise.resolve({ ok: true, json() { return Promise.resolve(nextCancelResponse); } });
+      }
+      if (url === "/api/disk/reveal") {
+        return Promise.resolve({ ok: true });
+      }
+      throw new Error("unexpected URL: " + url);
+    },
+    setInterval(cb, ms) {
+      assert.equal(ms, 300);
+      const id = nextTimerID++;
+      timers.set(id, cb);
+      return id;
+    },
+    clearInterval(id) {
+      timers.delete(id);
+    },
+  };
+
+  vm.runInNewContext(fs.readFileSync(path.join(assets, "disk.js"), "utf8"), context);
+  const el = id => elements.get(id);
+
+  await flush();
+  assert.equal(diskFetches, 1);
+  assert.equal(timers.size, 0, "idle state must not start a polling timer");
+  assert.equal(el("detailDiskUsage").textContent, "75%");
+  assert.equal(el("scanRootInput").value, "/Users/demo/Downloads");
+  assert.equal(el("chooseDirBtn").hidden, false);
+  assert.equal(el("cancelScanBtn").hidden, true);
+  assert.equal(el("scopePresets").children.length, 3);
+  assert.equal(el("scopePresets").children[0].classList.contains("active"), true);
+
+  // Clicking a preset updates the input without triggering a scan automatically.
+  el("scopePresets").children[1].click();
+  assert.equal(el("scanRootInput").value, "/Users/demo/Desktop");
+  assert.equal(el("scopePresets").children[1].classList.contains("active"), true);
+  assert.equal(requests.filter(r => r.url === "/api/disk/scan").length, 0);
+
+  // Start scan -> scanning state & active 300ms poll.
+  nextScanResponse = {
+    id: 1,
+    state: "scanning",
+    root: "/Users/demo/Desktop",
+    startedAt: 1700000000000,
+    elapsedMs: 120,
+    scannedFiles: 12,
+    scannedDirs: 2,
+    scannedBytes: 5e9,
+    skippedDirs: 0,
+    skippedSamples: [],
+    incomplete: false,
+    truncated: false,
+    files: [],
+    limit: 100,
+  };
+  el("startScanBtn").click();
+  await flush();
+  assert.equal(el("cancelScanBtn").hidden, false);
+  assert.equal(el("startScanBtn").disabled, true);
+  assert.equal(timers.size, 1, "scanning must start 300ms polling");
+
+  // Poll receives completed scan with skipped directories.
+  diskState = {
+    ...diskState,
+    scan: {
+      id: 1,
+      state: "completed",
+      root: "/Users/demo/Desktop",
+      startedAt: 1700000000000,
+      finishedAt: 1700000001200,
+      elapsedMs: 1200,
+      scannedFiles: 40,
+      scannedDirs: 5,
+      scannedBytes: 12e9,
+      skippedDirs: 2,
+      skippedSamples: ["/Users/demo/Desktop/Locked"],
+      incomplete: true,
+      truncated: false,
+      files: [
+        { name: "archive.dmg", dir: "/Users/demo/Desktop", path: "/Users/demo/Desktop/archive.dmg", size: 8e9, logicalSize: 8e9 },
+        { name: "clip.mov", dir: "/Users/demo/Desktop/sub", path: "/Users/demo/Desktop/sub/clip.mov", size: 4e9, logicalSize: 0 },
+      ],
+      limit: 100,
+    },
+  };
+  const [pollTimer] = Array.from(timers.values());
+  pollTimer();
+  await flush();
+  assert.equal(timers.size, 0, "completed scan must stop polling");
+  assert.equal(el("cancelScanBtn").hidden, true);
+  assert.equal(el("startScanBtn").disabled, false);
+  assert.equal(el("scanWarning").hidden, false);
+  assert.equal(el("skippedList").hidden, false);
+  assert.equal(el("skippedList").children.length, 2);
+  assert.equal(el("fileList").children.length, 2);
+  assert.equal(el("scanScopeMeta").textContent, "范围：/Users/demo/Desktop");
+  assert.match(el("fileList").children[1].children[0].children[1].children[0].title, /逻辑大小 0 B/);
+
+  // Localized validation error on invalid scan root in zh-CN.
+  nextScanError = { code: "invalid_root", error: "invalid scan root" };
+  el("startScanBtn").click();
+  await flush();
+  await flush();
+  assert.equal(el("scanWarning").hidden, false);
+  assert.match(el("scanWarningText").textContent, /绝对路径/);
+
+  // Clicking "Show in Finder" posts /api/disk/reveal with exact file path.
+  const firstFileItem = el("fileList").children[0];
+  const revealBtn = firstFileItem.children[0].children[1].children[1];
+  assert.equal(revealBtn.textContent, "在 Finder 中显示");
+  revealBtn.click();
+  await flush();
+  const revealReq = requests.find(r => r.url === "/api/disk/reveal");
+  assert.deepEqual(revealReq.body, { path: "/Users/demo/Desktop/archive.dmg" });
+
+  // Choosing folder starts scan on picked path.
+  nextScanResponse = {
+    id: 2,
+    state: "scanning",
+    root: "/Users/demo/Projects",
+    startedAt: 1700000002000,
+    elapsedMs: 10,
+    scannedFiles: 0,
+    scannedDirs: 0,
+    scannedBytes: 0,
+    skippedDirs: 0,
+    skippedSamples: [],
+    incomplete: false,
+    truncated: false,
+    files: [],
+    limit: 100,
+  };
+  el("chooseDirBtn").click();
+  await flush();
+  await flush();
+  assert.equal(el("scanRootInput").value, "/Users/demo/Projects");
+  assert.equal(timers.size, 1);
+
+  // Hiding stops polling while scanning.
+  doc.visibilityState = "hidden";
+  doc.hidden = true;
+  for (const fn of docListeners.get("visibilitychange") || []) fn();
+  assert.equal(timers.size, 0, "hiding window must pause active scan polling");
+
+  // Visible again in English mode resumes polling for active scan.
+  doc.documentElement.lang = "en";
+  doc.visibilityState = "visible";
+  doc.hidden = false;
+  diskState = { ...diskState, scan: nextScanResponse };
+  for (const fn of docListeners.get("visibilitychange") || []) fn();
+  await flush();
+  assert.equal(timers.size, 1);
+  assert.equal(el("startScanBtn").textContent, "Scan");
+
+  // Cancelling stops polling and shows partial-result warning.
+  nextCancelResponse = {
+    ...nextScanResponse,
+    state: "cancelled",
+    finishedAt: 1700000002500,
+    elapsedMs: 500,
+    incomplete: true,
+  };
+  el("cancelScanBtn").click();
+  await flush();
+  assert.equal(timers.size, 0);
+  assert.equal(el("scanWarning").hidden, false);
+  assert.match(el("scanWarningText").textContent, /cancelled/i);
+
+  // Start another scan while a stale GET /api/disk (returning an older completed
+  // scan) is in flight, then verify the stale GET does not overwrite the new scan
+  // or stop polling, and pagehide stops it.
+  diskState = { ...diskState, scan: { ...diskState.scan, id: 1, state: "completed" } };
+  let resolveStaleRefresh = null;
+  deferredDiskFetch = fn => { resolveStaleRefresh = fn; };
+  for (const fn of docListeners.get("visibilitychange") || []) fn();
+  assert.ok(resolveStaleRefresh, "expected in-flight /api/disk request");
+
+  nextScanResponse = { ...nextScanResponse, id: 3, state: "scanning" };
+  el("startScanBtn").click();
+  await flush();
+  assert.equal(timers.size, 1);
+
+  resolveStaleRefresh();
+  await flush();
+  assert.equal(timers.size, 1, "stale /api/disk response must not stop new scan polling");
+
+  for (const fn of winListeners.get("pagehide") || []) fn();
+  assert.equal(timers.size, 0, "pagehide must clear timers");
+}
+
 async function check() {
   await checkOverviewPanel();
   await checkMemoryDetail();
-  console.log("Panel check passed: disk capacity, warnings, unavailable readings, recovery, resize, i18n, and memory details.");
+  await checkDiskDetail();
+  console.log("Panel check passed: disk capacity, warnings, unavailable readings, recovery, resize, i18n, memory details, and disk details.");
 }
 
 check().catch(error => { console.error(error); process.exitCode = 1; });

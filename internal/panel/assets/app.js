@@ -227,13 +227,19 @@
     }
   });
 
-  $("memMetric").addEventListener("click", function () { post("/api/memory/open"); });
-  $("memMetric").addEventListener("keydown", function (e) {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      post("/api/memory/open");
-    }
-  });
+  function bindOpen(id, endpoint) {
+    var el = $(id);
+    el.addEventListener("click", function () { post(endpoint); });
+    el.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        post(endpoint);
+      }
+    });
+  }
+
+  bindOpen("memMetric", "/api/memory/open");
+  bindOpen("diskMetric", "/api/disk/open");
 
   $("quit").addEventListener("click", function () { post("/api/quit"); });
 

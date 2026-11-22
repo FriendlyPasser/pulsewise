@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="{{.Lang}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.DiskDetailTitle}}</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body class="detail-body">
+<main class="detail detail-disk">
+  <header class="detail-head">
+    <div class="brand">
+      <svg class="logo" width="20" height="20" viewBox="0 0 512 512" aria-hidden="true">
+        <rect class="logo-ground" x="4" y="4" width="504" height="504" rx="113"/>
+        <rect x="128" y="300" width="64" height="112" rx="16" fill="#B4B4BA"/>
+        <rect x="224" y="220" width="64" height="192" rx="16" fill="#B4B4BA"/>
+        <rect x="320" y="160" width="64" height="252" rx="16" fill="#B4B4BA"/>
+        <polyline points="84,290 176,290 206,214 248,372 290,150 322,290 428,290" fill="none" stroke="#FFFFFF" stroke-width="44" stroke-linejoin="round" stroke-linecap="round"/>
+        <polyline points="84,290 176,290 206,214 248,372 290,150 322,290 428,290" fill="none" stroke="#0E0E10" stroke-width="22" stroke-linejoin="round" stroke-linecap="round"/>
+      </svg>
+      <span class="name">{{.DiskDetailTitle}}</span>
+    </div>
+    <span class="value detail-total detail-total-disk" id="detailDiskUsage">–</span>
+  </header>
+
+  <section class="card detail-summary">
+    <div class="disk-meter" id="detailDiskMeter" role="progressbar" aria-label="{{.DiskAriaLabel}}" aria-valuemin="0" aria-valuemax="100" aria-valuetext="{{.DiskUnavailable}}">
+      <div class="disk-fill" id="detailDiskFill"></div>
+    </div>
+    <div class="disk-details">
+      <span>{{.DiskUsed}} <span id="detailDiskUsed">–</span> / <span id="detailDiskTotal">–</span></span>
+      <span>{{.DiskAvailable}} <span id="detailDiskAvailable">–</span></span>
+    </div>
+  </section>
+
+  <section class="card detail-section disk-controls">
+    <div class="section-head">
+      <span class="section-title">{{.DiskScopeLabel}}</span>
+      <button type="button" class="btn-secondary" id="chooseDirBtn" hidden>{{.DiskChooseFolder}}</button>
+    </div>
+    <div class="disk-controls-body">
+      <div class="scope-row">
+        <input type="text" class="scope-input" id="scanRootInput" aria-label="{{.DiskScopeLabel}}" spellcheck="false" autocomplete="off">
+        <button type="button" class="btn-primary" id="startScanBtn">{{.DiskStartScan}}</button>
+        <button type="button" class="btn-secondary" id="cancelScanBtn" hidden>{{.DiskCancelScan}}</button>
+      </div>
+      <div class="scope-presets" id="scopePresets"></div>
+    </div>
+  </section>
+
+  <section class="card detail-section disk-status" id="scanStatusCard">
+    <div class="status-head">
+      <span class="status-badge" id="scanStatusBadge"></span>
+      <span class="status-text" id="scanStatusText"></span>
+    </div>
+    <div class="status-meta" id="scanMetaRow" hidden>
+      <span id="scanScopeMeta"></span>
+      <span id="scanTimeMeta"></span>
+      <span id="scanTotalsMeta"></span>
+    </div>
+    <div class="status-warning" id="scanWarning" hidden>
+      <div class="status-warning-text" id="scanWarningText"></div>
+      <ul class="skipped-list" id="skippedList" hidden></ul>
+    </div>
+  </section>
+
+  <section class="card detail-section">
+    <div class="section-head">
+      <span class="section-title">{{.DiskFilesHeading}}</span>
+      <span class="section-meta" id="fileListMeta">–</span>
+    </div>
+    <div class="reveal-error" id="revealError" role="alert" hidden></div>
+    <div class="file-list" id="fileList"></div>
+  </section>
+
+  <footer class="mem-notes" id="diskNotes">
+    <p>{{.DiskNoteBasis}}</p>
+    <p>{{.DiskNoteAPFS}}</p>
+    <p>{{.DiskNotePermissions}}</p>
+  </footer>
+</main>
+<script src="disk.js"></script>
+</body>
+</html>

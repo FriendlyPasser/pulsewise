@@ -81,8 +81,10 @@ def check(binary):
                 assert json.load(response)["state"] == "off"
             for path, expected in (
                 ("/", b"cpuValue"), ("/memory", b"appList"),
-                ("/memory.html", b"unattributedList"), ("/app.js", b"/api/state"),
-                ("/memory.js", b"/api/memory"), ("/app.css", b"--panel"),
+                ("/memory.html", b"unattributedList"), ("/disk", b"fileList"),
+                ("/disk.html", b"scanRootInput"), ("/app.js", b"/api/state"),
+                ("/memory.js", b"/api/memory"), ("/disk.js", b"/api/disk"),
+                ("/app.css", b"--panel"),
             ):
                 with request(path) as response:
                     asset = response.read()
@@ -90,6 +92,7 @@ def check(binary):
                     if path == "/":
                         assert b'diskValue' in asset
                         assert b'diskMeter' in asset
+                        assert b'diskMetric' in asset
                         assert b'memMetric' in asset
 
             with request("/api/memory") as response:
@@ -115,6 +118,69 @@ def check(binary):
 
             with request("/api/memory/open", {}) as response:
                 assert response.status == 204
+            with request("/api/disk/open", {}) as response:
+                assert response.status == 204
+
+            with request("/api/disk") as response:
+                assert response.headers["Cache-Control"] == "no-store"
+                disk_detail = json.load(response)
+            assert disk_detail["capabilities"]["chooseDir"] is False
+            assert disk_detail["capabilities"]["reveal"] is False
+            assert disk_detail["scan"]["state"] == "idle"
+
+            with tempfile.TemporaryDirectory() as scan_dir:
+                big_path = os.path.join(scan_dir, "big.bin")
+                small_path = os.path.join(scan_dir, "small.bin")
+                with open(big_path, "wb") as fh:
+                    fh.write(b"x" * (64 * 1024))
+                with open(small_path, "wb") as fh:
+                    fh.write(b"y" * (16 * 1024))
+
+                with request("/api/disk/scan", {"root": scan_dir}) as response:
+                    assert response.status == 200
+                    started_scan = json.load(response)
+                assert started_scan["root"] == scan_dir
+
+                scan_deadline = time.monotonic() + 5
+                completed_scan = None
+                while time.monotonic() < scan_deadline:
+                    with request("/api/disk") as response:
+                        completed_scan = json.load(response)["scan"]
+                    if completed_scan["state"] != "scanning":
+                        break
+                    time.sleep(0.05)
+                assert completed_scan and completed_scan["state"] == "completed", completed_scan
+                assert completed_scan["root"] == scan_dir
+                assert completed_scan["scannedFiles"] == 2
+                files = completed_scan["files"]
+                assert len(files) == 2
+                assert files[0]["name"] == "big.bin" and files[1]["name"] == "small.bin"
+                assert files[0]["size"] > files[1]["size"] > 0
+
+                try:
+                    request("/api/disk/reveal", {"path": "/etc/hosts"})
+                    raise AssertionError("out-of-root reveal was accepted")
+                except urllib.error.HTTPError as error:
+                    assert error.code == 400
+                    error.close()
+
+                try:
+                    request("/api/disk/reveal", {"path": big_path})
+                    raise AssertionError("browser host revealed file")
+                except urllib.error.HTTPError as error:
+                    assert error.code == 501
+                    error.close()
+
+            try:
+                request("/api/disk/choose", {})
+                raise AssertionError("browser host opened native folder picker")
+            except urllib.error.HTTPError as error:
+                assert error.code == 501
+                error.close()
+
+            with request("/api/disk/cancel", {}) as response:
+                assert response.status == 200
+
             with request("/api/fit", {"height": 440}) as response:
                 assert response.status == 204
             try:
