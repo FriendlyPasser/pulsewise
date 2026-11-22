@@ -53,6 +53,8 @@ for snapshot := range sampler.Subscribe(ctx) {
 
 进程内存统计在 `internal/stats` 中按 macOS“活动监视器”口径读取当前用户进程的物理内存占用（`proc_pid_rusage` 的 `ri_phys_footprint`），无需 root 权限。多进程合并依次依据可执行文件路径最外层 `.app` / `.app.bundle` 名称（覆盖嵌套 helper 与 Chromium `code_sign_clone`）、macOS `responsibility_get_pid_responsible_for_pid` 责任进程（覆盖由 `launchd` 拉起的 WebKit/AppKit XPC 服务）及父进程 `ppid` 链（覆盖子命令行进程）。仍无法归属到 `.app` 包的当前用户进程归入 `unattributed`，并在页面说明中标明其他系统账户进程与内核联动内存因权限边界不纳入单进程列表。
 
+磁盘大文件扫描同样独立于每秒一次的 `Snapshot` 采样循环，由 `stats.DiskScanner` 按需执行。用户点击总览面板的硬盘区域时，页面请求 `POST /api/disk/open`，原生宿主打开名为 `disk` 的标准 Wails 窗口加载 `/disk.html`，并在窗口关闭事件（`WindowWillClose`）触发时取消进行中的扫描。详情页在加载时读取 `GET /api/disk`，仅在扫描处于 `scanning` 且页面可见时每 300 毫秒轮询一次状态。`POST /api/disk/scan` 与 `POST /api/disk/cancel` 控制异步遍历。原生的目录选择对话框（`POST /api/disk/choose`）与“在 Finder 中显示”（`POST /api/disk/reveal`）通过可选接口 `panel.DiskUI` 暴露，浏览器宿主无需实现虚假原生弹窗。扫描按文件实际分配磁盘空间（Darwin 下为 `st_blocks * 512`）保留前 100 个最大文件，不跟随符号链接、不跨文件系统挂载点、对多硬链接按 `(dev, ino)` 去重，并记录因权限或读取失败跳过的目录，以便与 APFS 容器 `statfs` 容量统计互为对照。
+
 菜单栏显示偏好由 `gui` 管理。右键菜单“菜单栏显示”选择 1 到 4 项监控，默认 CPU、GPU、内存，三柱恢复原来的柱宽。监控定义统一管理保存键名、菜单标签、取值和排列顺序，图标与悬停提示只显示已选项目。详情面板继续显示全部监控。
 
 偏好保存在 `os.UserConfigDir()/Pulsewise/tray.json`，先写同目录临时文件再重命名。不存在时使用默认值；内容无效或读取失败时回退到默认值并记录错误。保存失败时保留先前选择并提示用户。启动完成后，选择状态、设置写入和图标刷新都在原生 UI 线程上执行，采样协程只提交快照。

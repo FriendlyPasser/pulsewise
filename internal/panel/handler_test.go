@@ -190,6 +190,7 @@ func TestEmbeddedAssets(t *testing.T) {
 		"/disk.html":   "scanRootInput",
 		"/app.js":      "/api/state",
 		"/memory.js":   "/api/memory",
+		"/disk.js":     "/api/disk",
 		"/app.css":     "--panel",
 	} {
 		rw := request(h, "GET", path, "")

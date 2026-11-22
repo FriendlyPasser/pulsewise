@@ -6,6 +6,7 @@ go test -mod=readonly -race -timeout=60s ./...
 go vet -mod=readonly ./...
 node --check internal/panel/assets/app.js
 node --check internal/panel/assets/memory.js
+node --check internal/panel/assets/disk.js
 node tools/check_panel.js
 
 check_dir=$(mktemp -d "${TMPDIR:-/tmp}/pulsewise-check.XXXXXX")
