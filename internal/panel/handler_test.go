@@ -458,8 +458,15 @@ func TestDiskDetailAPIAndNativeCapabilities(t *testing.T) {
 		t.Fatalf("malformed scan JSON status=%d", rw.Code)
 	}
 	scanner.startErr = stats.ErrInvalidScanRoot
-	if rw := request(nh, "POST", "/api/disk/scan", `{"root":"rel"}`); rw.Code != http.StatusBadRequest {
-		t.Fatalf("invalid scan root status=%d", rw.Code)
+	errRW := request(nh, "POST", "/api/disk/scan", `{"root":"rel"}`)
+	if errRW.Code != http.StatusBadRequest {
+		t.Fatalf("invalid scan root status=%d", errRW.Code)
+	}
+	var errPayload struct {
+		Code string `json:"code"`
+	}
+	if err := json.Unmarshal(errRW.Body.Bytes(), &errPayload); err != nil || errPayload.Code != "invalid_root" {
+		t.Fatalf("invalid scan root body=%s err=%v", errRW.Body.String(), err)
 	}
 	scanner.startErr = nil
 

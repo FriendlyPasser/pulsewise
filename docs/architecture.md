@@ -13,16 +13,17 @@ main
        └─ stats
 ```
 
-只有 `gui` 可以依赖 Wails。`panel` 不依赖宿主实现，通过它自己定义的 `Host`、`SnapshotSource` 和 `Updates` 接口访问能力。`stats` 和 `update` 不依赖界面或宿主包。
+只有 `gui` 可以依赖 Wails。`panel` 不依赖宿主实现，通过它自己定义的 `Host`、`DiskUI`、`SnapshotSource`、`DiskScanner` 和 `Updates` 接口访问能力。`stats` 和 `update` 不依赖界面或宿主包。
 
 ## 调用方式与职责
 
-原生宿主创建采样器和更新器，将它们传给面板：
+原生宿主创建采样器、磁盘扫描器和更新器，将它们传给面板：
 
 ```go
 sampler := stats.NewSampler(time.Second)
+diskScanner := stats.NewDiskScanner(ctx)
 updater := update.New(ctx)
-handler := panel.Handler(host, sampler, updater)
+handler := panel.Handler(host, sampler, diskScanner, updater, loc)
 
 go sampler.Run(ctx)
 go updater.Run()

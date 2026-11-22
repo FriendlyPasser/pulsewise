@@ -323,6 +323,15 @@ func (s *DiskScanner) runScan(ctx context.Context, scanCancel context.CancelFunc
 		}
 	}
 
+	maybeFlush := func() {
+		sinceFlush++
+		if sinceFlush >= progressFlushBatchSize || time.Since(lastFlush) >= progressFlushInterval {
+			flushProgress()
+			sinceFlush = 0
+			lastFlush = time.Now()
+		}
+	}
+
 	for len(dirs) > 0 {
 		if ctx.Err() != nil {
 			s.markAppCancelled(gen)
@@ -343,9 +352,11 @@ func (s *DiskScanner) runScan(ctx context.Context, scanCancel context.CancelFunc
 				return
 			}
 			recordSkipped(dir)
+			maybeFlush()
 			continue
 		}
 		scannedDirs++
+		maybeFlush()
 
 		for _, entry := range entries {
 			if ctx.Err() != nil {
@@ -353,12 +364,14 @@ func (s *DiskScanner) runScan(ctx context.Context, scanCancel context.CancelFunc
 				return
 			}
 			if entry.Type()&os.ModeSymlink != 0 {
+				maybeFlush()
 				continue
 			}
 			childPath := filepath.Join(dir, entry.Name())
 			if entry.IsDir() {
 				// Avoid scanning the firmlinked Data volume twice when scanning "/".
 				if root == "/" && childPath == "/System/Volumes/Data" {
+					maybeFlush()
 					continue
 				}
 				info, err := entry.Info()
@@ -366,43 +379,54 @@ func (s *DiskScanner) runScan(ctx context.Context, scanCancel context.CancelFunc
 					if !errors.Is(err, os.ErrNotExist) {
 						recordSkipped(childPath)
 					}
+					maybeFlush()
 					continue
 				}
 				if info.Mode()&os.ModeSymlink != 0 {
+					maybeFlush()
 					continue
 				}
 				if hasDev {
 					if childDev, ok := statDevice(info); ok && childDev != rootDev {
+						maybeFlush()
 						continue
 					}
 				}
 				dirs = append(dirs, childPath)
+				maybeFlush()
 				continue
 			}
 			if !entry.Type().IsRegular() {
+				maybeFlush()
 				continue
 			}
 			info, err := entry.Info()
 			if err != nil || info.Mode()&os.ModeSymlink != 0 {
+				maybeFlush()
 				continue
 			}
 			if info.IsDir() {
 				if root == "/" && childPath == "/System/Volumes/Data" {
+					maybeFlush()
 					continue
 				}
 				if hasDev {
 					if childDev, ok := statDevice(info); ok && childDev != rootDev {
+						maybeFlush()
 						continue
 					}
 				}
 				dirs = append(dirs, childPath)
+				maybeFlush()
 				continue
 			}
 			if !info.Mode().IsRegular() {
+				maybeFlush()
 				continue
 			}
 			fs, ok := statRegularFile(info)
 			if !ok {
+				maybeFlush()
 				continue
 			}
 
@@ -439,12 +463,7 @@ func (s *DiskScanner) runScan(ctx context.Context, scanCancel context.CancelFunc
 				}
 			}
 
-			sinceFlush++
-			if sinceFlush >= progressFlushBatchSize || time.Since(lastFlush) >= progressFlushInterval {
-				flushProgress()
-				sinceFlush = 0
-				lastFlush = time.Now()
-			}
+			maybeFlush()
 		}
 	}
 

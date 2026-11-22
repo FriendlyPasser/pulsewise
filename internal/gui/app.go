@@ -88,8 +88,8 @@ func (h *host) ChooseDiskDirectory(initial string) (string, bool, error) {
 		SetMessage(h.chooseFolderTitle).
 		SetButtonText(h.chooseFolderBtn)
 	if initial != "" {
-		if info, err := os.Stat(initial); err == nil && info.IsDir() {
-			dlg.SetDirectory(initial)
+		if dir := resolveExistingDir(initial); dir != "" {
+			dlg.SetDirectory(dir)
 		}
 	}
 	if w, ok := h.app.Window.GetByName("disk"); ok && w != nil {
@@ -97,6 +97,32 @@ func (h *host) ChooseDiskDirectory(initial string) (string, bool, error) {
 	}
 	path, err := dlg.PromptForSingleSelection()
 	return path, path == "", err
+}
+
+func resolveExistingDir(raw string) string {
+	p := strings.TrimSpace(raw)
+	if p == "" {
+		return ""
+	}
+	if p == "~" || strings.HasPrefix(p, "~/") {
+		home, err := os.UserHomeDir()
+		if err != nil || home == "" {
+			return ""
+		}
+		if p == "~" {
+			p = home
+		} else {
+			p = filepath.Join(home, p[2:])
+		}
+	}
+	if !filepath.IsAbs(p) {
+		return ""
+	}
+	clean := filepath.Clean(p)
+	if info, err := os.Stat(clean); err == nil && info.IsDir() {
+		return clean
+	}
+	return ""
 }
 
 func (h *host) RevealInFinder(path string) error {

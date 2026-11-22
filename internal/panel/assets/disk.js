@@ -51,6 +51,12 @@
       revealInFinder: "在 Finder 中显示",
       revealFailed: "无法在 Finder 中显示该文件（可能已被移动或删除）。",
       scanRequestFailed: "无法开始扫描，请检查目录路径是否存在且有权限读取。",
+      scanErrors: {
+        invalid_root: "请输入有效的绝对路径或以 ~/ 开头的路径。",
+        not_found: "找不到该目录，请确认路径是否存在。",
+        not_dir: "该路径不是目录，请选择文件夹。",
+        permission: "没有权限访问该目录。"
+      },
       allocatedTitle: function (alloc, logical) {
         return "实际磁盘占用 " + alloc + "（逻辑大小 " + logical + "）";
       }
@@ -102,6 +108,12 @@
       revealInFinder: "Show in Finder",
       revealFailed: "Unable to reveal this file in Finder (it may have been moved or removed).",
       scanRequestFailed: "Unable to start scan. Check that the folder exists and is readable.",
+      scanErrors: {
+        invalid_root: "Enter a valid absolute path or a path starting with ~/.",
+        not_found: "Folder not found. Check that the path exists.",
+        not_dir: "This path is not a folder. Choose a directory instead.",
+        permission: "Permission denied for this folder."
+      },
       allocatedTitle: function (alloc, logical) {
         return "Allocated " + alloc + " on disk (logical size " + logical + ")";
       }
@@ -151,6 +163,15 @@
   var lastPresets = [];
   var capabilities = { chooseDir: false, reveal: false };
   var clientError = "";
+  var mutationEpoch = 0;
+  var refreshSeq = 0;
+  var choosingDir = false;
+
+  function syncActionButtons(scanning) {
+    $("startScanBtn").disabled = scanning || choosingDir;
+    $("chooseDirBtn").disabled = scanning || choosingDir;
+    $("cancelScanBtn").hidden = !scanning;
+  }
 
   function isVisible() {
     return document.visibilityState !== "hidden" && !document.hidden;
@@ -271,7 +292,7 @@
 
         var actions = el("span", "file-actions");
         var sizeEl = el("span", "file-size", diskSize(file.size));
-        if (file.logicalSize && file.logicalSize !== file.size) {
+        if (typeof file.logicalSize === "number" && file.logicalSize !== file.size) {
           sizeEl.title = msg.allocatedTitle(diskSize(file.size), diskSize(file.logicalSize));
         }
         actions.appendChild(sizeEl);
@@ -311,9 +332,7 @@
     var scanning = state === "scanning";
     var files = scan.files || [];
 
-    $("startScanBtn").disabled = scanning;
-    $("chooseDirBtn").disabled = scanning;
-    $("cancelScanBtn").hidden = !scanning;
+    syncActionButtons(scanning);
     $("startScanBtn").textContent = (state === "completed" || state === "cancelled" || state === "error") ? msg.rescan : msg.scan;
 
     var badge = $("scanStatusBadge");
@@ -348,15 +367,15 @@
     var warningParts = [];
     if (clientError) {
       warningParts.push(clientError);
+    } else if (state === "error") {
+      if (scan.error) warningParts.push(scan.error);
     } else {
-      if (state === "error" && scan.error) {
-        warningParts.push(scan.error);
-      } else if (state === "cancelled") {
+      if (state === "cancelled") {
         warningParts.push(msg.cancelledWarning);
       }
       if ((scan.skippedDirs || 0) > 0) {
         warningParts.push(msg.skippedWarning(scan.skippedDirs));
-      } else if (scan.incomplete && state !== "cancelled" && state !== "error") {
+      } else if (scan.incomplete && state !== "cancelled") {
         warningParts.push(msg.skippedWarning(1));
       }
       if (scan.truncated) {
@@ -417,28 +436,55 @@
   }
 
   function refresh() {
+    var seq = ++refreshSeq;
+    var epoch = mutationEpoch;
     return fetch("/api/disk", { cache: "no-store" })
       .then(function (r) { return r.json(); })
-      .then(render)
+      .then(function (data) {
+        if (seq !== refreshSeq || epoch !== mutationEpoch) return;
+        var incoming = (data && data.scan) || null;
+        if (incoming && lastScan && incoming.id && lastScan.id && incoming.id < lastScan.id) {
+          return;
+        }
+        render(data);
+      })
       .catch(function () {});
   }
 
+  function localizeScanError(r) {
+    return r.text().then(function (text) {
+      var msg = messages();
+      try {
+        var parsed = JSON.parse(text);
+        if (parsed && parsed.code && msg.scanErrors[parsed.code]) {
+          return msg.scanErrors[parsed.code];
+        }
+      } catch (_) {}
+      return msg.scanRequestFailed;
+    });
+  }
+
   function startScan(rootPath) {
+    stopPolling();
     clientError = "";
     showRevealError("");
+    var epoch = ++mutationEpoch;
     var target = (rootPath !== undefined ? rootPath : $("scanRootInput").value || "").trim();
     return fetch("/api/disk/scan", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ root: target })
     }).then(function (r) {
+      if (epoch !== mutationEpoch) return;
       if (!r.ok) {
-        return r.text().then(function (text) {
-          clientError = (text && text.trim()) || messages().scanRequestFailed;
+        return localizeScanError(r).then(function (errMsg) {
+          if (epoch !== mutationEpoch) return;
+          clientError = errMsg;
           if (lastScan) renderScan(lastScan);
         });
       }
       return r.json().then(function (scan) {
+        if (epoch !== mutationEpoch) return;
         if (scan && scan.root) {
           $("scanRootInput").value = scan.root;
           inputInitialized = true;
@@ -447,6 +493,7 @@
         renderScan(scan);
       });
     }).catch(function () {
+      if (epoch !== mutationEpoch) return;
       clientError = messages().scanRequestFailed;
       if (lastScan) renderScan(lastScan);
     });
@@ -472,16 +519,24 @@
   });
 
   $("cancelScanBtn").addEventListener("click", function () {
+    stopPolling();
+    var epoch = ++mutationEpoch;
     fetch("/api/disk/cancel", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: "{}"
     }).then(function (r) { return r.json(); })
-      .then(renderScan)
+      .then(function (scan) {
+        if (epoch !== mutationEpoch) return;
+        renderScan(scan);
+      })
       .catch(function () {});
   });
 
   $("chooseDirBtn").addEventListener("click", function () {
+    if (choosingDir) return;
+    choosingDir = true;
+    syncActionButtons(lastScan && lastScan.state === "scanning");
     var initial = ($("scanRootInput").value || "").trim();
     fetch("/api/disk/choose", {
       method: "POST",
@@ -491,13 +546,18 @@
       if (!r.ok) return null;
       return r.json();
     }).then(function (res) {
+      choosingDir = false;
+      syncActionButtons(lastScan && lastScan.state === "scanning");
       if (res && !res.cancelled && res.path) {
         $("scanRootInput").value = res.path;
         inputInitialized = true;
         syncPresetActive();
         startScan(res.path);
       }
-    }).catch(function () {});
+    }).catch(function () {
+      choosingDir = false;
+      syncActionButtons(lastScan && lastScan.state === "scanning");
+    });
   });
 
   document.addEventListener("visibilitychange", function () {

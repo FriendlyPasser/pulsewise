@@ -1,6 +1,8 @@
 package gui
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/FriendlyPasser/pulsewise/internal/panel"
@@ -42,5 +44,27 @@ func TestDiskWindowOptions(t *testing.T) {
 	}
 	if opts.Mac.WindowClass != 0 {
 		t.Fatalf("WindowClass = %v, want standard window", opts.Mac.WindowClass)
+	}
+}
+
+func TestResolveExistingDir(t *testing.T) {
+	dir := t.TempDir()
+	filePath := filepath.Join(dir, "file.txt")
+	if err := os.WriteFile(filePath, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := resolveExistingDir(dir); got != dir {
+		t.Fatalf("resolveExistingDir(%q) = %q, want %q", dir, got, dir)
+	}
+	if got := resolveExistingDir(filePath); got != "" {
+		t.Fatalf("resolveExistingDir(file) = %q, want empty", got)
+	}
+	if got := resolveExistingDir("relative/path"); got != "" {
+		t.Fatalf("resolveExistingDir(relative) = %q, want empty", got)
+	}
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		if got := resolveExistingDir("~"); got != filepath.Clean(home) {
+			t.Fatalf("resolveExistingDir(~) = %q, want %q", got, filepath.Clean(home))
+		}
 	}
 }

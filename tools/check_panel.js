@@ -387,6 +387,8 @@ async function checkDiskDetail() {
   };
 
   let nextScanResponse = null;
+  let nextScanError = null;
+  let deferredDiskFetch = null;
   let nextChooseResponse = { path: "/Users/demo/Projects", cancelled: false };
   let nextCancelResponse = null;
 
@@ -418,9 +420,19 @@ async function checkDiskDetail() {
       requests.push({ url, method: (opts && opts.method) || "GET", body });
       if (url === "/api/disk") {
         diskFetches++;
+        if (deferredDiskFetch) {
+          const resolveDeferred = deferredDiskFetch;
+          deferredDiskFetch = null;
+          return new Promise(resolve => { resolveDeferred(() => resolve({ ok: true, json() { return Promise.resolve(diskState); } })); });
+        }
         return Promise.resolve({ ok: true, json() { return Promise.resolve(diskState); } });
       }
       if (url === "/api/disk/scan") {
+        if (nextScanError) {
+          const errPayload = JSON.stringify(nextScanError);
+          nextScanError = null;
+          return Promise.resolve({ ok: false, text() { return Promise.resolve(errPayload); } });
+        }
         return Promise.resolve({ ok: true, json() { return Promise.resolve(nextScanResponse); } });
       }
       if (url === "/api/disk/choose") {
@@ -506,7 +518,7 @@ async function checkDiskDetail() {
       truncated: false,
       files: [
         { name: "archive.dmg", dir: "/Users/demo/Desktop", path: "/Users/demo/Desktop/archive.dmg", size: 8e9, logicalSize: 8e9 },
-        { name: "clip.mov", dir: "/Users/demo/Desktop/sub", path: "/Users/demo/Desktop/sub/clip.mov", size: 4e9, logicalSize: 4e9 },
+        { name: "clip.mov", dir: "/Users/demo/Desktop/sub", path: "/Users/demo/Desktop/sub/clip.mov", size: 4e9, logicalSize: 0 },
       ],
       limit: 100,
     },
@@ -522,6 +534,15 @@ async function checkDiskDetail() {
   assert.equal(el("skippedList").children.length, 2);
   assert.equal(el("fileList").children.length, 2);
   assert.equal(el("scanScopeMeta").textContent, "范围：/Users/demo/Desktop");
+  assert.match(el("fileList").children[1].children[0].children[1].children[0].title, /逻辑大小 0 B/);
+
+  // Localized validation error on invalid scan root in zh-CN.
+  nextScanError = { code: "invalid_root", error: "invalid scan root" };
+  el("startScanBtn").click();
+  await flush();
+  await flush();
+  assert.equal(el("scanWarning").hidden, false);
+  assert.match(el("scanWarningText").textContent, /绝对路径/);
 
   // Clicking "Show in Finder" posts /api/disk/reveal with exact file path.
   const firstFileItem = el("fileList").children[0];
@@ -585,11 +606,24 @@ async function checkDiskDetail() {
   assert.equal(el("scanWarning").hidden, false);
   assert.match(el("scanWarningText").textContent, /cancelled/i);
 
-  // Start another scan, then verify pagehide stops polling.
+  // Start another scan while a stale GET /api/disk (returning an older completed
+  // scan) is in flight, then verify the stale GET does not overwrite the new scan
+  // or stop polling, and pagehide stops it.
+  diskState = { ...diskState, scan: { ...diskState.scan, id: 1, state: "completed" } };
+  let resolveStaleRefresh = null;
+  deferredDiskFetch = fn => { resolveStaleRefresh = fn; };
+  for (const fn of docListeners.get("visibilitychange") || []) fn();
+  assert.ok(resolveStaleRefresh, "expected in-flight /api/disk request");
+
   nextScanResponse = { ...nextScanResponse, id: 3, state: "scanning" };
   el("startScanBtn").click();
   await flush();
   assert.equal(timers.size, 1);
+
+  resolveStaleRefresh();
+  await flush();
+  assert.equal(timers.size, 1, "stale /api/disk response must not stop new scan polling");
+
   for (const fn of winListeners.get("pagehide") || []) fn();
   assert.equal(timers.size, 0, "pagehide must clear timers");
 }

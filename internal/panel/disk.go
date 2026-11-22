@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -74,7 +75,7 @@ func registerDisk(mux *http.ServeMux, s SnapshotSource, d DiskScanner, ui DiskUI
 		}
 		status, err := d.Start(body.Root)
 		if err != nil {
-			http.Error(rw, err.Error(), http.StatusBadRequest)
+			writeScanError(rw, err)
 			return
 		}
 		writeJSON(rw, status)
@@ -146,6 +147,27 @@ func registerDisk(mux *http.ServeMux, s SnapshotSource, d DiskScanner, ui DiskUI
 		}
 		rw.WriteHeader(http.StatusNoContent)
 	})
+}
+
+func writeScanError(rw http.ResponseWriter, err error) {
+	code := "scan_failed"
+	switch {
+	case errors.Is(err, stats.ErrInvalidScanRoot):
+		code = "invalid_root"
+	case errors.Is(err, stats.ErrScanRootNotFound):
+		code = "not_found"
+	case errors.Is(err, stats.ErrScanRootNotDir):
+		code = "not_dir"
+	case errors.Is(err, fs.ErrPermission):
+		code = "permission"
+	}
+	rw.Header().Set("Content-Type", "application/json")
+	rw.Header().Set("Cache-Control", "no-store")
+	rw.WriteHeader(http.StatusBadRequest)
+	_ = json.NewEncoder(rw).Encode(struct {
+		Code  string `json:"code"`
+		Error string `json:"error"`
+	}{Code: code, Error: err.Error()})
 }
 
 func decodeOptionalJSON(r io.Reader, dst any) error {
