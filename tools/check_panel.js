@@ -234,7 +234,18 @@ async function checkMemoryDetail() {
   let memoryFetches = 0;
 
   let detail = {
-    memory: { total: 16 * 1024 ** 3, used: 8 * 1024 ** 3, app: 5 * 1024 ** 3, wired: 2 * 1024 ** 3, compressed: 1024 ** 3, swap: 0 },
+    memory: {
+      total: 16 * 1024 ** 3,
+      used: 8 * 1024 ** 3,
+      app: 5 * 1024 ** 3,
+      wired: 2 * 1024 ** 3,
+      compressed: 1024 ** 3,
+      swap: 0,
+      history: [
+        { app: 4 * 1024 ** 3, wired: 2 * 1024 ** 3, compressed: 1024 ** 3 },
+        { app: 5 * 1024 ** 3, wired: 2 * 1024 ** 3, compressed: 1024 ** 3 },
+      ],
+    },
     apps: [
       {
         name: "Google Chrome",
@@ -305,6 +316,12 @@ async function checkMemoryDetail() {
   assert.equal(timers.size, 1);
   assert.equal(el("detailMemUsed").textContent, "8.0");
   assert.equal(el("detailMemTotal").textContent, "16");
+  for (const id of ["detailMemAppArea", "detailMemWiredArea", "detailMemCompArea"]) {
+    assert.match(el(id).getAttribute("d"), /^M.*Z$/);
+  }
+  assert.equal(el("detailMemArea").style.transform, "translateX(-19.20px)");
+  const initialAppPath = el("detailMemAppArea").getAttribute("d");
+  el("detailMemArea").style.transform = "translateX(-9.60px)";
   assert.equal(el("appCount").textContent, "2 个应用");
   assert.equal(el("appList").children.length, 2);
   assert.equal(el("unattributedCard").hidden, false);
@@ -329,6 +346,8 @@ async function checkMemoryDetail() {
   activeTimer();
   await flush();
   assert.equal(memoryFetches, 2);
+  assert.equal(el("detailMemAppArea").getAttribute("d"), initialAppPath);
+  assert.equal(el("detailMemArea").style.transform, "translateX(-9.60px)");
   assert.equal(el("appCount").textContent, "2 apps");
   assert.equal(el("appList").children[0].children[0].getAttribute("aria-expanded"), "true");
   assert.equal(el("appList").children[0].children[1].hidden, false);
@@ -346,6 +365,41 @@ async function checkMemoryDetail() {
   await flush();
   assert.equal(memoryFetches, 3, "polling must resume immediately when visible again");
   assert.equal(timers.size, 1);
+  assert.equal(el("detailMemArea").style.transform, "translateX(-9.60px)");
+
+  detail = {
+    ...detail,
+    memory: {
+      ...detail.memory,
+      used: 9 * 1024 ** 3,
+      app: 6 * 1024 ** 3,
+      history: [
+        ...detail.memory.history,
+        { app: 6 * 1024 ** 3, wired: 2 * 1024 ** 3, compressed: 1024 ** 3 },
+      ],
+    },
+  };
+  const [resumedTimer] = Array.from(timers.values());
+  resumedTimer();
+  await flush();
+  assert.equal(memoryFetches, 4);
+  assert.notEqual(el("detailMemAppArea").getAttribute("d"), initialAppPath);
+  assert.match(el("detailMemAppArea").getAttribute("d"), /^M.*Z$/);
+  assert.equal(el("detailMemArea").style.transform, "translateX(-19.20px)");
+
+  detail = {
+    ...detail,
+    memory: { total: 0, used: 0, app: 0, wired: 0, compressed: 0, swap: 0, history: [] },
+  };
+  resumedTimer();
+  await flush();
+  assert.equal(memoryFetches, 5);
+  assert.equal(el("detailMemUsed").textContent, "–");
+  assert.equal(el("detailMemTotal").textContent, "–");
+  for (const id of ["detailMemAppArea", "detailMemWiredArea", "detailMemCompArea"]) {
+    assert.equal(el(id).getAttribute("d"), "");
+  }
+  assert.equal(el("detailMemArea").style.transform, "translateX(0)");
 
   for (const fn of winListeners.get("pagehide") || []) fn();
   assert.equal(timers.size, 0, "polling must stop on pagehide");

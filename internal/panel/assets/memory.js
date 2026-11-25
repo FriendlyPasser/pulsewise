@@ -39,7 +39,60 @@
 
   var expanded = Object.create(null);
   var unattributedOpen = false;
+  var lastAreaKey = "";
   var timer = null;
+
+  function renderArea(m) {
+    var g = $("detailMemArea");
+    if (!(m.total > 0) || !m.history || !m.history.length) {
+      $("detailMemAppArea").setAttribute("d", "");
+      $("detailMemWiredArea").setAttribute("d", "");
+      $("detailMemCompArea").setAttribute("d", "");
+      g.style.transition = "none";
+      g.style.transform = "translateX(0)";
+      lastAreaKey = "";
+      return;
+    }
+    var n = 17, step = 288 / (n - 2), H = 40;
+    var h = m.history.slice(-n);
+    while (h.length < n) h.unshift(h[0]);
+    var areaKey = m.total + ":" + h.map(function (p) {
+      return p.app + "," + p.wired + "," + p.compressed;
+    }).join(";");
+    if (areaKey === lastAreaKey) return;
+    lastAreaKey = areaKey;
+
+    var y = function (v) { return H - Math.min(v / m.total, 1) * H; };
+    var base = h.map(function () { return H; });
+    var app = h.map(function (p) { return y(p.app); });
+    var wired = h.map(function (p) { return y(p.app + p.wired); });
+    var comp = h.map(function (p) { return y(p.app + p.wired + p.compressed); });
+    $("detailMemAppArea").setAttribute("d", band(app, base, step));
+    $("detailMemWiredArea").setAttribute("d", band(wired, app, step));
+    $("detailMemCompArea").setAttribute("d", band(comp, wired, step));
+
+    g.style.transition = "none";
+    g.style.transform = "translateX(0)";
+    g.getBoundingClientRect();
+    g.style.transition = "transform 1s linear";
+    g.style.transform = "translateX(" + (-step).toFixed(2) + "px)";
+  }
+
+  function band(top, bottom, step) {
+    var pts = function (ys) { return ys.map(function (v, i) { return [i * step, v]; }); };
+    var back = pts(bottom).reverse();
+    return curve(pts(top), "M") + curve(back, "L") + "Z";
+  }
+
+  function curve(p, start) {
+    var d = start + p[0][0].toFixed(1) + "," + p[0][1].toFixed(1);
+    for (var i = 1; i < p.length; i++) {
+      var m = ((p[i - 1][0] + p[i][0]) / 2).toFixed(1);
+      d += "C" + m + "," + p[i - 1][1].toFixed(1) + " " + m + "," + p[i][1].toFixed(1) +
+        " " + p[i][0].toFixed(1) + "," + p[i][1].toFixed(1);
+    }
+    return d;
+  }
 
   function renderProcesses(container, procs) {
     container.textContent = "";
@@ -142,6 +195,7 @@
     $("detailMemWired").textContent = m.total > 0 ? size(m.wired) : "–";
     $("detailMemComp").textContent = m.total > 0 ? size(m.compressed) : "–";
     $("detailMemSwap").textContent = m.total > 0 ? size(m.swap) : "–";
+    renderArea(m);
 
     renderApps((d && d.apps) || [], msg);
 

@@ -20,7 +20,11 @@ type rawProcess struct {
 // owning application alongside system memory totals.
 func ReadMemoryDetail() MemoryDetail {
 	d := groupProcesses(readProcesses())
-	d.Memory = readMemory()
+	m := readMemory()
+	if m.Total > 0 {
+		m.History = []MemPoint{{App: m.App, Wired: m.Wired, Compressed: m.Compressed}}
+	}
+	d.Memory = m
 	d.At = time.Now().UnixMilli()
 	return d
 }

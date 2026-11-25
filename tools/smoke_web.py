@@ -94,12 +94,15 @@ def check(binary):
                         assert b'diskMeter' in asset
                         assert b'diskMetric' in asset
                         assert b'memMetric' in asset
+                    if path in ("/memory", "/memory.html"):
+                        assert b"detailMemArea" in asset, path
 
             with request("/api/memory") as response:
                 assert response.headers["Cache-Control"] == "no-store"
                 detail = json.load(response)
             assert detail["at"] > 0
             assert detail["memory"]["total"] > 0
+            assert 1 <= len(detail["memory"]["history"]) <= 17
             apps = detail["apps"]
             unattributed = detail["unattributed"]
             assert len(apps) + len(unattributed) > 0
