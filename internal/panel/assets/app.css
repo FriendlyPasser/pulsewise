@@ -255,7 +255,8 @@ body.detail-body {
 .detail-head .brand { padding: 0; }
 .detail-total { --tone: var(--mem); font-size: 18px; }
 
-.detail-summary { padding: 10px 12px; }
+.detail-summary { padding: 12px 14px; gap: 8px; }
+.detail-summary .area { width: 100%; height: 40px; }
 .detail-section { overflow: hidden; }
 
 .section-head {
@@ -394,11 +395,6 @@ body.detail-body {
 
 .detail-disk { max-width: 640px; }
 .detail-total-disk { --tone: var(--disk); }
-.detail-disk .detail-summary {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
 
 .disk-controls-body {
   padding: 10px 14px 12px;

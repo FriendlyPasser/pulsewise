@@ -126,7 +126,10 @@ func TestStateContract(t *testing.T) {
 
 func TestMemoryDetailContractAndOpen(t *testing.T) {
 	want := stats.MemoryDetail{
-		Memory: stats.Memory{Total: 16 << 30, Used: 8 << 30, App: 4 << 30, Wired: 2 << 30, Compressed: 2 << 30},
+		Memory: stats.Memory{
+			Total: 16 << 30, Used: 8 << 30, App: 4 << 30, Wired: 2 << 30, Compressed: 2 << 30,
+			History: []stats.MemPoint{{App: 4 << 30, Wired: 2 << 30, Compressed: 2 << 30}},
+		},
 		Apps: []stats.AppMemory{
 			{
 				Name:   "Google Chrome",
@@ -210,19 +213,19 @@ func TestLocalizedMemoryHTML(t *testing.T) {
 		{
 			name:    "simplified chinese",
 			loc:     LocaleZhCN,
-			want:    []string{`<html lang="zh-CN">`, "应用内存详情", "应用占用", "未归属应用的进程", "phys_footprint"},
+			want:    []string{`<html lang="zh-CN">`, "应用内存详情", "应用占用", "未归属应用的进程", "phys_footprint", "detailMemArea"},
 			notWant: []string{`<html lang="en">`, "App Memory Details", "Unattributed Processes"},
 		},
 		{
 			name:    "english",
 			loc:     LocaleEn,
-			want:    []string{`<html lang="en">`, "App Memory Details", "Applications", "Unattributed Processes", "phys_footprint"},
+			want:    []string{`<html lang="en">`, "App Memory Details", "Applications", "Unattributed Processes", "phys_footprint", "detailMemArea"},
 			notWant: []string{`<html lang="zh-CN">`, "应用内存详情", "未归属应用的进程"},
 		},
 		{
 			name:    "unknown locale defaults to english",
 			loc:     Locale("fr"),
-			want:    []string{`<html lang="en">`, "App Memory Details", "Unattributed Processes"},
+			want:    []string{`<html lang="en">`, "App Memory Details", "Unattributed Processes", "detailMemArea"},
 			notWant: []string{`<html lang="zh-CN">`, "应用内存详情"},
 		},
 	}
