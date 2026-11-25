@@ -2,6 +2,7 @@ package stats
 
 import (
 	"context"
+	"slices"
 	"sync"
 	"time"
 )
@@ -85,7 +86,14 @@ func (s *Sampler) Latest() Snapshot {
 }
 
 func (s *Sampler) MemoryDetail() MemoryDetail {
-	return s.readDetail()
+	d := s.readDetail()
+	s.mu.RLock()
+	hist := slices.Clone(s.snap.Memory.History)
+	s.mu.RUnlock()
+	if d.Memory.Total > 0 && len(hist) > 0 {
+		d.Memory.History = hist
+	}
+	return d
 }
 
 func (s *Sampler) sample() {

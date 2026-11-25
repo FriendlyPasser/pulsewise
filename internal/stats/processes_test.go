@@ -236,9 +236,12 @@ func TestGroupProcessesFollowsResponsibilityChainBeyondDirectParent(t *testing.T
 }
 
 func TestReadMemoryDetailLiveDarwin(t *testing.T) {
+	if seeded := ReadMemoryDetail(); seeded.Memory.Total == 0 || len(seeded.Memory.History) == 0 {
+		t.Fatalf("expected seeded memory history from ReadMemoryDetail, got %+v", seeded.Memory)
+	}
 	detail := NewSampler(time.Hour).MemoryDetail()
-	if detail.At == 0 || detail.Memory.Total == 0 {
-		t.Fatalf("expected live memory total and timestamp, got %+v", detail)
+	if detail.At == 0 || detail.Memory.Total == 0 || len(detail.Memory.History) == 0 {
+		t.Fatalf("expected live memory total, history, and timestamp, got %+v", detail)
 	}
 	selfPID := os.Getpid()
 	foundSelf := false

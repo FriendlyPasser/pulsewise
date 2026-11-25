@@ -163,3 +163,45 @@ func TestConcurrentReadersOwnTheirSnapshots(t *testing.T) {
 		t.Fatal("a canceled context created an active subscription")
 	}
 }
+
+func TestMemoryDetailAttachesClonedHistory(t *testing.T) {
+	s := countingSampler(time.Hour)
+	total := uint64(1024)
+	s.readDetail = func() MemoryDetail {
+		var hist []MemPoint
+		if total > 0 {
+			hist = []MemPoint{{App: 99, Wired: 2, Compressed: 3}}
+		}
+		return MemoryDetail{
+			Memory:       Memory{Total: total, Used: 512, App: 99, Wired: 2, Compressed: 3, History: hist},
+			Apps:         []AppMemory{},
+			Unattributed: []ProcessMemory{},
+		}
+	}
+
+	for range HistoryLen + 4 {
+		s.sample()
+	}
+
+	want := s.Latest().Memory.History
+	if len(want) != HistoryLen {
+		t.Fatalf("latest history len = %d, want %d", len(want), HistoryLen)
+	}
+	got := s.MemoryDetail()
+	if !reflect.DeepEqual(got.Memory.History, want) {
+		t.Fatalf("MemoryDetail history = %+v, want %+v", got.Memory.History, want)
+	}
+
+	got.Memory.History[0].App = 99999
+	if !reflect.DeepEqual(s.Latest().Memory.History, want) {
+		t.Fatal("mutating MemoryDetail history mutated Latest history")
+	}
+	if !reflect.DeepEqual(s.MemoryDetail().Memory.History, want) {
+		t.Fatal("mutating MemoryDetail history mutated subsequent MemoryDetail history")
+	}
+
+	total = 0
+	if unavailable := s.MemoryDetail(); len(unavailable.Memory.History) != 0 {
+		t.Fatalf("unavailable MemoryDetail history = %+v, want empty", unavailable.Memory.History)
+	}
+}
