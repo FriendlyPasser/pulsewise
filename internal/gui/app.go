@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -27,8 +28,7 @@ const (
 type host struct {
 	app               *application.App
 	panel             *application.WebviewWindow
-	memoryWindowTitle string
-	diskWindowTitle   string
+	detailWindowTitle string
 	chooseFolderTitle string
 	chooseFolderBtn   string
 	diskScanner       *stats.DiskScanner
@@ -39,44 +39,41 @@ func (h *host) FitPanel(height int) {
 	application.InvokeSync(func() { h.panel.SetSize(panelWidth, height) })
 }
 
-func (h *host) openDetailWindow(name string, opts application.WebviewWindowOptions, onClose func()) {
+func (h *host) openDetailWindow(path string) {
 	application.InvokeAsync(func() {
 		if h.panel != nil && h.panel.IsVisible() {
 			h.panel.Hide()
 		}
-		if w, ok := h.app.Window.GetByName(name); ok && w != nil {
+		if w, ok := h.app.Window.GetByName(detailWindowName); ok && w != nil {
+			w.ExecJS("if (location.pathname !== " + strconv.Quote(path) + ") location.assign(" + strconv.Quote(path) + ")")
 			w.Restore()
 			w.Show()
 			w.Focus()
 			return
 		}
-		win := h.app.Window.NewWithOptions(opts)
+		win := h.app.Window.NewWithOptions(detailWindowOptions(h.detailWindowTitle, path))
 		win.OnWindowEvent(events.Mac.WebViewDidFinishNavigation, func(_ *application.WindowEvent) {
 			application.InvokeAsync(func() {
 				win.Show()
 				win.Focus()
 			})
 		})
-		if onClose != nil {
-			win.OnWindowEvent(events.Mac.WindowWillClose, func(_ *application.WindowEvent) {
-				onClose()
-			})
-		}
+		win.OnWindowEvent(events.Mac.WindowWillClose, func(_ *application.WindowEvent) {
+			if h.diskScanner != nil {
+				h.diskScanner.Cancel()
+			}
+		})
 		win.Show()
 		win.Focus()
 	})
 }
 
 func (h *host) OpenMemory() {
-	h.openDetailWindow("memory", memoryWindowOptions(h.memoryWindowTitle), nil)
+	h.openDetailWindow("/memory.html")
 }
 
 func (h *host) OpenDisk() {
-	h.openDetailWindow("disk", diskWindowOptions(h.diskWindowTitle), func() {
-		if h.diskScanner != nil {
-			h.diskScanner.Cancel()
-		}
-	})
+	h.openDetailWindow("/disk.html")
 }
 
 func (h *host) ChooseDiskDirectory(initial string) (string, bool, error) {
@@ -92,7 +89,7 @@ func (h *host) ChooseDiskDirectory(initial string) (string, bool, error) {
 			dlg.SetDirectory(dir)
 		}
 	}
-	if w, ok := h.app.Window.GetByName("disk"); ok && w != nil {
+	if w, ok := h.app.Window.GetByName(detailWindowName); ok && w != nil {
 		dlg.AttachToWindow(w)
 	}
 	path, err := dlg.PromptForSingleSelection()
@@ -165,8 +162,7 @@ func Run() error {
 	}
 
 	h := &host{
-		memoryWindowTitle: msg.memoryWindowTitle,
-		diskWindowTitle:   msg.diskWindowTitle,
+		detailWindowTitle: msg.detailWindowTitle,
 		chooseFolderTitle: msg.chooseFolderTitle,
 		chooseFolderBtn:   msg.chooseFolderBtn,
 		diskScanner:       diskScanner,
@@ -298,27 +294,16 @@ func panelOptions() application.WebviewWindowOptions {
 	}
 }
 
-func memoryWindowOptions(title string) application.WebviewWindowOptions {
-	return application.WebviewWindowOptions{
-		Name:            "memory",
-		Title:           title,
-		URL:             "/memory.html",
-		Width:           460,
-		Height:          560,
-		MinWidth:        380,
-		MinHeight:       400,
-		InitialPosition: application.WindowCentered,
-	}
-}
+const detailWindowName = "details"
 
-func diskWindowOptions(title string) application.WebviewWindowOptions {
+func detailWindowOptions(title, path string) application.WebviewWindowOptions {
 	return application.WebviewWindowOptions{
-		Name:            "disk",
+		Name:            detailWindowName,
 		Title:           title,
-		URL:             "/disk.html",
-		Width:           580,
+		URL:             path,
+		Width:           720,
 		Height:          620,
-		MinWidth:        460,
+		MinWidth:        560,
 		MinHeight:       440,
 		InitialPosition: application.WindowCentered,
 	}
