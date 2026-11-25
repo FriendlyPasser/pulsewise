@@ -4,7 +4,7 @@
 
 <h1 align="center">Pulsewise</h1>
 
-<p align="center">Your Mac's CPU, GPU, memory and disk capacity in the menu bar: readable at a glance, one click for the details.</p>
+<p align="center">Monitor CPU, GPU, memory and disk usage from your Mac’s menu bar.</p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/platform-macOS-lightgrey" alt="macOS">
@@ -18,32 +18,32 @@
   <img src="docs/screenshots/panel-light.png" width="340" alt="The Pulsewise panel">
 </p>
 
-## Features
-
-- **Configurable menu bar columns**: CPU, GPU and memory by default. Right-click the icon and use “Menu Bar Display” to select 1–4 metrics from CPU, GPU, memory and disk. Changes apply immediately and persist after restart. Columns refresh every second, adapt to light and dark menu bars, and match the tooltip order.
-- **Dropdown panel**: left-click the icon to open it. CPU and GPU come with a sparkline of the last 17 seconds.
-  - CPU: user / system / idle
-  - GPU: utilization, model, core count
-  - Memory: split the way Activity Monitor splits it (App, wired, compressed), plus swap; click the memory section to open a detail window ranking apps with helper processes merged and expandable
-  - Disk: startup disk used, available, and total capacity, plus usage, refreshed every second. The capacity bar warns at 90% usage. Hover over the menu bar icon to see disk usage too. Click the disk section to open a detail window to scan a folder for large files and reveal them in Finder.
-- **Stays out of the way**: no Dock icon, not in ⌘Tab. The panel doesn't take focus, hides when it loses focus or on Esc, and opens on any Space, including over full-screen apps.
-- **Light, no permissions**: samples through system APIs directly. No root, no background service.
-
-Right-click the icon to choose metrics, restore the defaults or quit. The dropdown panel always shows all monitoring details.
-
-> The interface follows your macOS system language (Simplified Chinese and English, defaulting to English for other languages).
-
 ## Download and install
 
-Download the latest `.dmg` from [Releases](https://github.com/FriendlyPasser/pulsewise/releases/latest), open it, and drag `Pulsewise.app` into the Applications folder.
+Open the latest DMG, drag `Pulsewise.app` into Applications, then launch it. Look for three bars in the menu bar. Pulsewise has no Dock icon. [Download from GitHub Releases](https://github.com/FriendlyPasser/pulsewise/releases/latest)
 
-- **Requirements**: macOS 13 or later, Apple silicon or Intel Mac (universal binary).
-- **Signed & notarized**: release builds are signed with a Developer ID and notarized by Apple.
-- **Auto-update**: release builds check for and download updates automatically; click the update button in the panel to restart into the new version, or trigger a check from the right-click menu. Auto-update only works for release builds placed in a writable location such as Applications; source builds do not check for updates.
+The signed and notarized app runs on macOS 13 or later and supports both Apple silicon and Intel Macs. The interface follows your system language and supports Simplified Chinese and English.
+
+## Read the menu bar and panel
+
+The three bars show CPU, GPU and memory usage, refreshed once a second. Hover over the icon for percentages. To add disk usage or hide a metric, right-click the icon and open **Menu Bar Display**. Pulsewise remembers your selection.
+
+Click the icon to see all four metrics, including any hidden from the menu bar. The panel shows the last 17 samples of CPU and GPU usage, a breakdown of memory use, and used and available space on the startup disk. Press Esc to close it.
+
+## Find what uses memory or disk space
+
+Click **Memory** or **Disk** in the panel to open the detail window. Use the tabs at the top to switch between them.
+
+- **Memory** plots app, wired and compressed memory over time and shows swap usage separately. The list ranks your apps by physical memory footprint, including their helper processes. Expand an app to see its processes. Processes with no associated app appear in a separate group.
+- **Disk** lets you choose a folder and scan for the 100 largest files by space occupied on disk. You can cancel a scan or reveal a result in Finder. The scan summary reports directories your account could not read.
+
+## Login and updates
+
+Right-click the menu bar icon and select **Open at Login** to start Pulsewise when you sign in. Release builds check for updates and download them automatically. When an update is ready, click **Update** in the panel to restart. For a manual check, choose **Check for Updates** from the right-click menu. macOS may ask for administrator approval to replace the installed app.
 
 ## Build from source
 
-Requires macOS, Go 1.27+ and the Xcode command line tools (the sampler uses cgo).
+Requires macOS, Go 1.27.3+ and the Xcode command line tools (the sampler uses cgo).
 
 ```sh
 git clone https://github.com/FriendlyPasser/pulsewise.git
@@ -57,6 +57,8 @@ To work on the panel page, serve it to a browser instead of the menu bar:
 ```sh
 ./bin/pulsewise -web 127.0.0.1:8765
 ```
+
+Open `http://127.0.0.1:8765/` to view the panel.
 
 ## Development
 
