@@ -232,12 +232,40 @@ body {
 .quit:hover { color: var(--text); background: var(--hover); }
 
 body.detail-body {
+  display: grid;
+  grid-template-columns: clamp(72px, 16vw, 120px) minmax(0, 1fr);
+  align-items: start;
+  gap: 16px;
   padding: 16px;
   background: var(--panel);
   min-height: 100vh;
 }
 
+.detail-nav {
+  position: sticky;
+  top: 16px;
+  display: grid;
+  gap: 4px;
+}
+
+.detail-nav a {
+  padding: 8px 12px;
+  border-radius: 7px;
+  color: var(--muted);
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.detail-nav a:hover { background: var(--hover); }
+.detail-nav a[aria-current="page"] {
+  background: var(--card);
+  box-shadow: inset 0 0 0 1px var(--card-edge);
+  color: var(--text);
+  font-weight: 600;
+}
+
 .detail {
+  width: 100%;
   max-width: 560px;
   margin: 0 auto;
   display: flex;

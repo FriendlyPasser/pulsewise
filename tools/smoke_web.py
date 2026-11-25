@@ -1,5 +1,7 @@
 """Exercise the real browser host, API, embedded assets, sampling, and shutdown."""
 
+from html.parser import HTMLParser
+
 import json
 import os
 import re
@@ -9,6 +11,24 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
+
+
+class DetailNavigation(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.links = {}
+        self.in_nav = False
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if tag == "nav":
+            self.in_nav = True
+        elif self.in_nav and tag == "a":
+            self.links[attrs["href"]] = attrs.get("aria-current")
+
+    def handle_endtag(self, tag):
+        if tag == "nav":
+            self.in_nav = False
 
 
 def check(binary):
@@ -96,6 +116,14 @@ def check(binary):
                         assert b'memMetric' in asset
                     if path in ("/memory", "/memory.html"):
                         assert b"detailMemArea" in asset, path
+
+            path = "/memory"
+            for current, other in (("memory", "disk"), ("disk", "memory"), ("memory", "disk")):
+                with request(path) as response:
+                    nav = DetailNavigation()
+                    nav.feed(response.read().decode())
+                    assert nav.links == {current + ".html": "page", other + ".html": None}
+                    path = "/" + next(href for href, active in nav.links.items() if active is None)
 
             with request("/api/memory") as response:
                 assert response.headers["Cache-Control"] == "no-store"
