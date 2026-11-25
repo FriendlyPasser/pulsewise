@@ -19,11 +19,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
-// panelWidth is the design's 340px panel plus the room its shadow takes.
-const (
-	panelWidth  = 340 + 2*panelShadow
-	panelShadow = 6
-)
+const panelWidth = 340
 
 type host struct {
 	app               *application.App
@@ -263,9 +259,7 @@ func syncTrayMenu(items map[trayMetrics]*application.MenuItem, selected trayMetr
 	}
 }
 
-// panelOptions is the dropdown: frameless, see-through so the page draws
-// the design's rounded card and its shadow, shown on every Space without
-// activating the app, and hidden when it loses focus or on Escape.
+// macOS supplies the dropdown’s rounded corners, backdrop and shadow.
 func panelOptions() application.WebviewWindowOptions {
 	return application.WebviewWindowOptions{
 		Name:            "panel",
@@ -279,15 +273,14 @@ func panelOptions() application.WebviewWindowOptions {
 		DisableResize:   true,
 		HideOnEscape:    true,
 		HideOnFocusLost: true,
-		BackgroundType:  application.BackgroundTypeTransparent,
+		BackgroundType:  application.BackgroundTypeTranslucent,
 		Mac: application.MacWindow{
-			Backdrop: application.MacBackdropTransparent,
+			Backdrop:     application.MacBackdropTranslucent,
+			CornerRadius: 12,
 			CollectionBehavior: application.MacWindowCollectionBehaviorCanJoinAllSpaces |
 				application.MacWindowCollectionBehaviorFullScreenAuxiliary,
 			WindowClass:      application.MacWindowClassPanel,
 			PanelPreferences: application.MacPanelPreferences{NonActivating: true},
-			// the page draws the shadow; a window shadow would box it
-			DisableShadow: true,
 		},
 	}
 }
