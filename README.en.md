@@ -15,7 +15,7 @@
 <p align="center"><a href="README.md">简体中文</a> · <b>English</b></p>
 
 <p align="center">
-  <img src="docs/screenshots/panel-light.png" width="340" alt="The Pulsewise panel">
+  <img src="docs/screenshots/panel-system-disk-light.png" width="340" alt="Pulsewise panel showing CPU, GPU, memory and system disk usage">
 </p>
 
 ## Download and install

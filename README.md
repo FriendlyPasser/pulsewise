@@ -15,7 +15,7 @@
 <p align="center"><b>简体中文</b> · <a href="README.en.md">English</a></p>
 
 <p align="center">
-  <img src="docs/screenshots/panel-light.png" width="340" alt="Pulsewise 面板">
+  <img src="docs/screenshots/panel-system-disk-light.png" width="340" alt="Pulsewise 面板显示 CPU、GPU、内存和系统磁盘用量">
 </p>
 
 ## 下载安装
