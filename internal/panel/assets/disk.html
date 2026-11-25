@@ -7,23 +7,14 @@
 <link rel="stylesheet" href="app.css">
 </head>
 <body class="detail-body">
+{{template "detail-titlebar.html" .}}
 <nav class="detail-nav">
   <a href="memory.html">{{.Memory}}</a>
   <a href="disk.html" aria-current="page">{{.Disk}}</a>
 </nav>
 <main class="detail detail-disk">
   <header class="detail-head">
-    <div class="brand">
-      <svg class="logo" width="20" height="20" viewBox="0 0 512 512" aria-hidden="true">
-        <rect class="logo-ground" x="4" y="4" width="504" height="504" rx="113"/>
-        <rect x="128" y="300" width="64" height="112" rx="16" fill="#B4B4BA"/>
-        <rect x="224" y="220" width="64" height="192" rx="16" fill="#B4B4BA"/>
-        <rect x="320" y="160" width="64" height="252" rx="16" fill="#B4B4BA"/>
-        <polyline points="84,290 176,290 206,214 248,372 290,150 322,290 428,290" fill="none" stroke="#FFFFFF" stroke-width="44" stroke-linejoin="round" stroke-linecap="round"/>
-        <polyline points="84,290 176,290 206,214 248,372 290,150 322,290 428,290" fill="none" stroke="#0E0E10" stroke-width="22" stroke-linejoin="round" stroke-linecap="round"/>
-      </svg>
-      <span class="name">{{.DiskDetailTitle}}</span>
-    </div>
+    <h1>{{.DiskDetailTitle}}</h1>
     <span class="value detail-total detail-total-disk" id="detailDiskUsage">–</span>
   </header>
 

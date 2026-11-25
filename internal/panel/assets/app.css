@@ -50,6 +50,7 @@
 }
 
 * { box-sizing: border-box; }
+:focus { outline: none; }
 
 html, body {
   margin: 0;
@@ -140,7 +141,6 @@ body {
   transition: background 0.15s;
 }
 .metric.mem:hover { background: color-mix(in srgb, var(--mem) 7%, transparent); }
-.metric.mem:focus-visible { outline: 2px solid var(--mem); outline-offset: -2px; }
 .metric.mem .label,
 .metric.disk .label { display: inline-flex; align-items: center; gap: 4px; }
 .metric.mem .chevron,
@@ -152,7 +152,6 @@ body {
   transition: background 0.15s;
 }
 .metric.disk:hover { background: color-mix(in srgb, var(--disk) 7%, transparent); }
-.metric.disk:focus-visible { outline: 2px solid var(--disk); outline-offset: -2px; }
 .metric.disk:hover .chevron { color: var(--disk); transform: translateX(1px); }
 
 .head { display: flex; justify-content: space-between; align-items: baseline; }
@@ -232,18 +231,30 @@ body {
 .quit:hover { color: var(--text); background: var(--hover); }
 
 body.detail-body {
+  --titlebar-height: 32px;
   display: grid;
   grid-template-columns: clamp(72px, 16vw, 120px) minmax(0, 1fr);
   align-items: start;
   gap: 16px;
-  padding: 16px;
+  padding: calc(var(--titlebar-height) + 16px) 16px 16px;
   background: var(--panel);
   min-height: 100vh;
 }
 
+.brand.detail-titlebar {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 1;
+  height: var(--titlebar-height);
+  padding-left: 80px; /* Leave room for the macOS window controls. */
+  background: var(--card);
+  border-bottom: 1px solid var(--panel-edge);
+  --wails-draggable: drag;
+}
+
 .detail-nav {
   position: sticky;
-  top: 16px;
+  top: calc(var(--titlebar-height) + 16px);
   display: grid;
   gap: 4px;
 }
@@ -280,7 +291,7 @@ body.detail-body {
   gap: 12px;
 }
 
-.detail-head .brand { padding: 0; }
+.detail-head h1 { margin: 0; font-size: 15px; font-weight: 600; }
 .detail-total { --tone: var(--mem); font-size: 18px; }
 
 .detail-summary { padding: 12px 14px; gap: 8px; }
@@ -317,7 +328,6 @@ body.detail-body {
   transition: background 0.12s;
 }
 .app-row:hover { background: var(--hover); }
-.app-row:focus-visible { outline: 2px solid var(--mem); outline-offset: -2px; }
 
 .unattributed-toggle {
   flex-direction: row;
@@ -451,7 +461,6 @@ body.detail-body {
   -webkit-user-select: text;
   user-select: text;
 }
-.scope-input:focus { outline: 2px solid var(--disk); outline-offset: -1px; }
 
 .btn-primary,
 .btn-secondary {
