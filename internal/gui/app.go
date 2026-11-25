@@ -28,7 +28,6 @@ const (
 type host struct {
 	app               *application.App
 	panel             *application.WebviewWindow
-	detailWindowTitle string
 	chooseFolderTitle string
 	chooseFolderBtn   string
 	diskScanner       *stats.DiskScanner
@@ -51,7 +50,7 @@ func (h *host) openDetailWindow(path string) {
 			w.Focus()
 			return
 		}
-		win := h.app.Window.NewWithOptions(detailWindowOptions(h.detailWindowTitle, path))
+		win := h.app.Window.NewWithOptions(detailWindowOptions(path))
 		win.OnWindowEvent(events.Mac.WebViewDidFinishNavigation, func(_ *application.WindowEvent) {
 			application.InvokeAsync(func() {
 				win.Show()
@@ -162,7 +161,6 @@ func Run() error {
 	}
 
 	h := &host{
-		detailWindowTitle: msg.detailWindowTitle,
 		chooseFolderTitle: msg.chooseFolderTitle,
 		chooseFolderBtn:   msg.chooseFolderBtn,
 		diskScanner:       diskScanner,
@@ -296,10 +294,11 @@ func panelOptions() application.WebviewWindowOptions {
 
 const detailWindowName = "details"
 
-func detailWindowOptions(title, path string) application.WebviewWindowOptions {
+func detailWindowOptions(path string) application.WebviewWindowOptions {
 	return application.WebviewWindowOptions{
 		Name:            detailWindowName,
-		Title:           title,
+		Title:           "Pulsewise",
+		Mac:             application.MacWindow{TitleBar: application.MacTitleBarHidden},
 		URL:             path,
 		Width:           720,
 		Height:          620,

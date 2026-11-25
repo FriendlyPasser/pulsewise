@@ -19,7 +19,6 @@ type guiMessages struct {
 	metricMemory    string
 	metricDisk      string
 
-	detailWindowTitle string
 	chooseFolderTitle string
 	chooseFolderBtn   string
 
@@ -53,7 +52,6 @@ var guiMessagesZhCN = guiMessages{
 	metricMemory:    "内存",
 	metricDisk:      "硬盘",
 
-	detailWindowTitle: "资源详情",
 	chooseFolderTitle: "选择要扫描的目录",
 	chooseFolderBtn:   "选择",
 
@@ -87,7 +85,6 @@ var guiMessagesEn = guiMessages{
 	metricMemory:    "Memory",
 	metricDisk:      "Disk",
 
-	detailWindowTitle: "Resource Details",
 	chooseFolderTitle: "Choose a Folder to Scan",
 	chooseFolderBtn:   "Choose",
 

@@ -114,6 +114,10 @@ def check(binary):
                         assert b'diskMeter' in asset
                         assert b'diskMetric' in asset
                         assert b'memMetric' in asset
+                    if path in ("/memory.html", "/disk.html"):
+                        assert asset.count(b'class="logo"') == 1
+                        assert re.search(rb'<header class="brand detail-titlebar">.*?class="logo".*?>Pulsewise</span>\s*</header>', asset, re.S)
+                        assert re.search(rb'<header class="detail-head">\s*<h1>[^<]+</h1>', asset)
                     if path in ("/memory", "/memory.html"):
                         assert b"detailMemArea" in asset, path
 

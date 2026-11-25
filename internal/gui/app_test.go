@@ -5,14 +5,13 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/FriendlyPasser/pulsewise/internal/panel"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 func TestDetailWindowOptions(t *testing.T) {
 	for _, path := range []string{"/memory.html", "/disk.html"} {
-		opts := detailWindowOptions(messagesForLocale(panel.LocaleZhCN).detailWindowTitle, path)
-		if opts.Name != "details" || opts.Title != "资源详情" || opts.URL != path {
+		opts := detailWindowOptions(path)
+		if opts.Name != "details" || opts.Title != "Pulsewise" || opts.URL != path {
 			t.Fatalf("unexpected detail window options: %+v", opts)
 		}
 		if opts.InitialPosition != application.WindowCentered {
@@ -20,6 +19,9 @@ func TestDetailWindowOptions(t *testing.T) {
 		}
 		if opts.Frameless || opts.HideOnFocusLost || opts.DisableResize {
 			t.Fatalf("detail window should be standard resizable window: %+v", opts)
+		}
+		if opts.Mac.TitleBar != application.MacTitleBarHidden {
+			t.Fatal("detail title bar must keep the native controls and show the product header")
 		}
 		if opts.Mac.WindowClass != 0 {
 			t.Fatalf("WindowClass = %v, want standard window", opts.Mac.WindowClass)
