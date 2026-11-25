@@ -22,7 +22,7 @@ import (
 // panelWidth is the design's 340px panel plus the room its shadow takes.
 const (
 	panelWidth  = 340 + 2*panelShadow
-	panelShadow = 16
+	panelShadow = 6
 )
 
 type host struct {
