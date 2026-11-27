@@ -20,6 +20,8 @@
   --gpu: #F5A524;
   --mem: #3CC8B4;
   --disk: #B49AFF;
+  --net-down: #4CD964;
+  --net-up: #FF6B8A;
   --warning: #F5A524;
 }
 
@@ -42,6 +44,8 @@
     --gpu: #B86A00;
     --mem: #0F8A78;
     --disk: #7951C4;
+    --net-down: #1F8B4C;
+    --net-up: #C93B5B;
     --warning: #B86A00;
   }
   .card .metric { border-color: #EDEDF0; }
@@ -208,6 +212,36 @@ body {
   font-variant-numeric: tabular-nums;
 }
 .disk-details > span { white-space: nowrap; }
+
+.net-rates { display: inline-flex; align-items: baseline; gap: 8px; }
+.net-rate {
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+}
+.net-rate.down { color: var(--net-down); }
+.net-rate.up { color: var(--net-up); }
+.net-rate .arrow { font-size: 11px; }
+.net-spark polyline.down { stroke: var(--net-down); }
+.net-spark polyline.up { stroke: var(--net-up); }
+.net-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.net-legend { display: inline-flex; align-items: center; gap: 10px; }
+.legend-item { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.dot.down { background: var(--net-down); }
+.dot.up { background: var(--net-up); }
 
 .foot { display: flex; justify-content: flex-end; padding: 0 4px; }
 

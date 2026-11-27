@@ -36,7 +36,7 @@ for snapshot := range sampler.Subscribe(ctx) {
 
 | 模块 | 管理的职责 |
 | --- | --- |
-| `stats` | 系统读数、CPU 差值计算、历史、快照和订阅 |
+| `stats` | 系统读数、CPU 与网络吞吐差值计算、历史、快照和订阅 |
 | `update` | 版本判断、更新状态、下载、校验、安装和重启 |
 | `panel` | 内嵌页面、HTTP 路由、请求校验和响应 |
 | `gui` | Wails 窗口、菜单栏、UI 线程和原生应用生命周期 |
@@ -49,6 +49,8 @@ for snapshot := range sampler.Subscribe(ctx) {
 硬盘容量也由 `stats` 采样，通过 `Snapshot.Disk` 和 `/api/state` 的 `disk` 字段传给两个界面。每秒对系统数据卷 `/System/Volumes/Data` 调用 `statfs`，该路径不存在时读取 `/`。总容量取总块数乘块大小，可用容量取普通用户可用块数乘块大小，已用容量为两者之差，包含其他 APFS 共享卷和系统保留空间的占用。读取失败时总容量为零，界面显示不可用。
 
 容量属于当前状态，沿用已有采样循环，无需增加后台任务或独立状态缓存。面板以十进制 GB、TB 展示容量，使用率达到 90% 时容量条变色。容量没有秒级历史曲线，菜单栏悬停提示显示其使用率。
+
+网络吞吐量由 `stats` 每秒通过 `sysctl` 的 `IFMIB_IFALLDATA` 读取 64 位收发字节计数器 `ifi_ibytes` 和 `ifi_obytes`，无需 root 权限。采样只保留已启用 `IFF_UP` 且非回环 `IFF_LOOPBACK`、非点对点 `IFF_POINTOPOINT` 的以太网物理接口，接口类型须为 `IFT_ETHER` 且名称为 `en` 加数字后缀，以此排除回环、VPN 和虚拟网卡。若单个接口计数器回退或重置，该接口本次差值钳制为 0。两次采样之间使用 `CLOCK_MONOTONIC_RAW` 单调时钟计算时间差，首次采样或间隔超过 5 秒休眠阈值时重置基线并输出 0 速率。`Snapshot.Network` 携带当前下行与上行速率以及最近 17 个 `NetPoint` 样本，总览面板用双折线图展示，并以窗口内最高速率作为 Y 轴上限，同时保留 1 KB/s 下限避免微小背景流量占满纵轴高度。菜单栏只保留百分比柱，不加入无固定上限的瞬时网速。
 
 应用内存占用详情按需在独立窗口中展示，不进入每秒一次的 `Snapshot` 采样循环。用户点击总览面板的内存区域时，页面请求 `POST /api/memory/open`，原生宿主按需创建名为 `memory` 的标准 Wails 窗口加载 `/memory.html`；关闭窗口时由 Wails 销毁窗口实例，重新打开再创建，避免后台常驻 WebView。详情页仅在 `document.visibilityState` 可见时每秒请求 `GET /api/memory`，页面隐藏或关闭后立即停止轮询。
 

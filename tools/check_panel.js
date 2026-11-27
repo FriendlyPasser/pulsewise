@@ -77,6 +77,7 @@ const flush = () => new Promise(setImmediate);
 async function checkOverviewPanel() {
   const elements = collectElements("index.html");
   let disk = { total: 1e12, used: 750e9, available: 250e9 };
+  let network = { down: 1500000, up: 42000, history: [{ down: 1500000, up: 42000 }] };
   let updateStatus = { state: "off" };
   let tick;
   let fits = 0;
@@ -98,6 +99,7 @@ async function checkOverviewPanel() {
         gpu: { usage: -1 },
         memory: { used: 4e9, total: 8e9, app: 2e9, wired: 1e9, compressed: 1e9, swap: 0 },
         disk,
+        network,
       };
       return Promise.resolve({ json() { return Promise.resolve(state); } });
     },
@@ -223,6 +225,75 @@ async function checkOverviewPanel() {
   el("update").click();
   await flush();
   assert.equal(el("updateLabel").textContent, "Restarting…");
+
+  // Network rate formatting across B/s, KB/s, MB/s, GB/s and adaptive sparklines.
+  const parsePts = id => {
+    const raw = el(id).getAttribute("points");
+    assert(raw && !raw.includes("NaN"), id + " must not contain NaN: " + raw);
+    const pts = raw.split(" ").map(pair => {
+      const [x, y] = pair.split(",").map(Number);
+      assert(Number.isFinite(x) && Number.isFinite(y), "invalid point in " + id + ": " + pair);
+      return { x, y };
+    });
+    assert.equal(pts.length, 17, id + " must render 17 points");
+    return pts;
+  };
+
+  assert.equal(el("netDown").textContent, "1.5 MB/s");
+  assert.equal(el("netUp").textContent, "42.0 KB/s");
+  assert.equal(el("netPeak").textContent, "1.5 MB/s");
+  assert.equal(parsePts("netDownSpark")[16].y, 2);
+
+  network = { down: 512, up: 2.5e9, history: [{ down: 512, up: 2.5e9 }] };
+  tick();
+  await flush();
+  assert.equal(el("netDown").textContent, "512 B/s");
+  assert.equal(el("netUp").textContent, "2.50 GB/s");
+  assert.equal(el("netPeak").textContent, "2.50 GB/s");
+  assert.equal(parsePts("netUpSpark")[16].y, 2);
+
+  // Adaptive Y-axis scales up for a spike, then rescales down when it scrolls out.
+  const spikeHistory = Array.from({ length: 16 }, () => ({ down: 5e6, up: 1e6 }));
+  spikeHistory.unshift({ down: 10e6, up: 2e6 });
+  network = { down: 5e6, up: 1e6, history: spikeHistory };
+  tick();
+  await flush();
+  assert.equal(el("netPeak").textContent, "10.0 MB/s");
+  let downPts = parsePts("netDownSpark");
+  assert.equal(downPts[0].y, 2);
+  assert.equal(downPts[16].y, 16);
+
+  network = {
+    down: 2000,
+    up: 1000,
+    history: Array.from({ length: 17 }, () => ({ down: 2000, up: 1000 })),
+  };
+  tick();
+  await flush();
+  assert.equal(el("netPeak").textContent, "2.0 KB/s");
+  downPts = parsePts("netDownSpark");
+  const upPts = parsePts("netUpSpark");
+  assert.equal(downPts[16].y, 2);
+  assert.equal(upPts[16].y, 16);
+
+  // All-zero and missing network data render a flat baseline without NaN.
+  network = { down: 0, up: 0, history: [{ down: 0, up: 0 }] };
+  tick();
+  await flush();
+  assert.equal(el("netDown").textContent, "0 B/s");
+  assert.equal(el("netUp").textContent, "0 B/s");
+  assert.equal(el("netPeak").textContent, "0 B/s");
+  for (const pt of parsePts("netDownSpark")) assert.equal(pt.y, 30);
+  for (const pt of parsePts("netUpSpark")) assert.equal(pt.y, 30);
+
+  network = undefined;
+  tick();
+  await flush();
+  assert.equal(el("netDown").textContent, "0 B/s");
+  assert.equal(el("netUp").textContent, "0 B/s");
+  assert.equal(el("netPeak").textContent, "0 B/s");
+  for (const pt of parsePts("netDownSpark")) assert.equal(pt.y, 30);
+  for (const pt of parsePts("netUpSpark")) assert.equal(pt.y, 30);
 }
 
 async function checkMemoryDetail() {

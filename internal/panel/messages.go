@@ -36,6 +36,10 @@ type panelMessages struct {
 	DiskNoteBasis          string
 	DiskNoteAPFS           string
 	DiskNotePermissions    string
+	Network                string
+	NetDown                string
+	NetUp                  string
+	NetPeak                string
 	Quit                   string
 }
 
@@ -75,6 +79,10 @@ var messagesZhCN = panelMessages{
 	DiskNoteBasis:          "统计口径：按文件实际磁盘占用空间（st_blocks × 512，十进制单位）排序并展示前 100 项；跳过符号链接与其他挂载卷，硬链接文件在总计中不重复计数，未占用本地空间的云端文件不计入。",
 	DiskNoteAPFS:           "APFS 容量说明：顶部系统磁盘“已用”来自 APFS 容器可用空间（statfs），包含系统/虚拟内存等共享卷、本地时间机器快照、可清除空间及元数据；APFS 写时复制克隆共享磁盘块，因此文件大小之和无法直接等于已用容量。",
 	DiskNotePermissions:    "权限与完整性：扫描仅使用当前用户权限（无需 root 或完全磁盘访问权限）。被系统隐私或文件权限阻止的目录会跳过并在结果中标明。",
+	Network:                "网络",
+	NetDown:                "下行",
+	NetUp:                  "上行",
+	NetPeak:                "峰值",
 	Quit:                   "退出",
 }
 
@@ -114,6 +122,10 @@ var messagesEn = panelMessages{
 	DiskNoteBasis:          "Metric: ranks the top 100 files by actual allocated disk space (st_blocks × 512, decimal units). Symbolic links and other mounted volumes are skipped, hard links are counted once in totals, and cloud-only dataless files are excluded.",
 	DiskNoteAPFS:           "APFS capacity: System Disk Used comes from APFS container availability (statfs) and includes shared APFS volumes, local snapshots, purgeable space, and metadata. APFS clones share disk blocks, so individual file sizes will not sum to total used capacity.",
 	DiskNotePermissions:    "Permissions: scans run with current user permissions (no root or Full Disk Access required). Inaccessible directories are skipped and reported in the scan summary.",
+	Network:                "Network",
+	NetDown:                "Down",
+	NetUp:                  "Up",
+	NetPeak:                "Peak",
 	Quit:                   "Quit",
 }
 

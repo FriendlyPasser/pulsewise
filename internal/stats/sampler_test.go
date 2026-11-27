@@ -14,7 +14,8 @@ func countingSampler(interval time.Duration) *Sampler {
 		n++
 		return Snapshot{
 			CPU: CPU{Usage: n}, GPU: GPU{Usage: -1},
-			Memory: Memory{Total: 1024, App: uint64(n), Wired: 2, Compressed: 3},
+			Memory:  Memory{Total: 1024, App: uint64(n), Wired: 2, Compressed: 3},
+			Network: Network{Down: n * 10, Up: n * 5},
 		}
 	})
 }
@@ -35,13 +36,13 @@ func TestHistoryRetainsNewestSamples(t *testing.T) {
 		s.sample()
 	}
 	snap := s.Latest()
-	if len(snap.CPU.History) != HistoryLen || len(snap.GPU.History) != HistoryLen || len(snap.Memory.History) != HistoryLen {
-		t.Fatalf("history lengths = %d, %d, %d", len(snap.CPU.History), len(snap.GPU.History), len(snap.Memory.History))
+	if len(snap.CPU.History) != HistoryLen || len(snap.GPU.History) != HistoryLen || len(snap.Memory.History) != HistoryLen || len(snap.Network.History) != HistoryLen {
+		t.Fatalf("history lengths = %d, %d, %d, %d", len(snap.CPU.History), len(snap.GPU.History), len(snap.Memory.History), len(snap.Network.History))
 	}
 	for i := range HistoryLen {
 		want := float64(i + 6)
-		if snap.CPU.History[i] != want || snap.Memory.History[i].App != uint64(want) {
-			t.Fatalf("point %d: CPU %v, memory %+v", i, snap.CPU.History[i], snap.Memory.History[i])
+		if snap.CPU.History[i] != want || snap.Memory.History[i].App != uint64(want) || snap.Network.History[i].Down != want*10 || snap.Network.History[i].Up != want*5 {
+			t.Fatalf("point %d: CPU %v, memory %+v, network %+v", i, snap.CPU.History[i], snap.Memory.History[i], snap.Network.History[i])
 		}
 		if snap.GPU.History[i] != 0 {
 			t.Fatalf("unavailable GPU history = %v", snap.GPU.History[i])
@@ -61,16 +62,18 @@ func TestSnapshotsDoNotShareHistory(t *testing.T) {
 	a.CPU.History[0] = 999
 	a.GPU.History[0] = 999
 	a.Memory.History[0].App = 999
+	a.Network.History[0].Down = 999
 	latest.CPU.History[0] = 888
 	latest.GPU.History[0] = 888
 	latest.Memory.History[0].App = 888
+	latest.Network.History[0].Down = 888
 	if !reflect.DeepEqual(b, s.Latest()) {
 		t.Fatal("a reader changed the cache or another subscription")
 	}
 	for range 2 * HistoryLen {
 		s.sample()
 	}
-	if b.CPU.History[0] != 1 || b.GPU.History[0] != 0 || b.Memory.History[0].App != 1 {
+	if b.CPU.History[0] != 1 || b.GPU.History[0] != 0 || b.Memory.History[0].App != 1 || b.Network.History[0].Down != 10 || b.Network.History[0].Up != 5 {
 		t.Fatal("later samples changed a retained snapshot")
 	}
 }
@@ -143,6 +146,7 @@ func TestConcurrentReadersOwnTheirSnapshots(t *testing.T) {
 				snap := s.Latest()
 				snap.CPU.History[0] = -100
 				snap.Memory.History[0].App = 9999
+				snap.Network.History[0].Down = -100
 			}
 		})
 	}
@@ -151,12 +155,13 @@ func TestConcurrentReadersOwnTheirSnapshots(t *testing.T) {
 		ch := s.Subscribe(subCtx)
 		snap := <-ch
 		snap.GPU.History[0] = -100
+		snap.Network.History[0].Up = -100
 		stop()
 	}
 	readers.Wait()
 	cancel()
 	<-done
-	if snap := s.Latest(); snap.CPU.History[0] < 0 || snap.GPU.History[0] < 0 || snap.Memory.History[0].App == 9999 {
+	if snap := s.Latest(); snap.CPU.History[0] < 0 || snap.GPU.History[0] < 0 || snap.Memory.History[0].App == 9999 || snap.Network.History[0].Down < 0 || snap.Network.History[0].Up < 0 {
 		t.Fatal("a reader's mutations leaked into the sampler")
 	}
 	if _, ok := <-s.Subscribe(ctx); ok {
