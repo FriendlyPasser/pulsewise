@@ -106,6 +106,9 @@ func (s *Sampler) sample() {
 	snap.Memory.History = push(s.snap.Memory.History, MemPoint{
 		App: snap.Memory.App, Wired: snap.Memory.Wired, Compressed: snap.Memory.Compressed,
 	})
+	snap.Network.History = push(s.snap.Network.History, NetPoint{
+		Down: snap.Network.Down, Up: snap.Network.Up,
+	})
 	s.snap = snap
 	for ch := range s.subs {
 		// All channel writes and closes happen under mu. If the consumer read

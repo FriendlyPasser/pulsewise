@@ -5,13 +5,18 @@ type ticks struct{ user, sys, idle uint64 }
 // The system reader owns the previous counters. The sampler only sees readings.
 func newSystemReader() func() Snapshot {
 	prev, _ := readTicks()
+	netTracker := newNetworkTracker(defaultMaxNetworkGap)
 	return func() Snapshot {
 		cpu := CPU{Idle: 100}
 		if now, ok := readTicks(); ok {
 			cpu = cpuBetween(prev, now)
 			prev = now
 		}
-		return Snapshot{CPU: cpu, GPU: readGPU(), Memory: readMemory(), Disk: readDisk()}
+		var net Network
+		if ifaces, ok := readNetworkInterfaces(); ok {
+			net = netTracker.sample(ifaces, continuousNow())
+		}
+		return Snapshot{CPU: cpu, GPU: readGPU(), Memory: readMemory(), Disk: readDisk(), Network: net}
 	}
 }
 

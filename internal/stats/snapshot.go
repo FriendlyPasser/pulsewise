@@ -82,18 +82,33 @@ func (d Disk) Usage() float64 {
 	return float64(d.Used) / float64(d.Total) * 100
 }
 
+// Network is aggregate physical-interface throughput in bytes per second.
+type Network struct {
+	Down    float64    `json:"down"`
+	Up      float64    `json:"up"`
+	History []NetPoint `json:"history"`
+}
+
+// NetPoint is one sample of download and upload throughput in bytes per second.
+type NetPoint struct {
+	Down float64 `json:"down"`
+	Up   float64 `json:"up"`
+}
+
 // Snapshot is the shared read model for the tray and panel.
 type Snapshot struct {
-	CPU    CPU    `json:"cpu"`
-	GPU    GPU    `json:"gpu"`
-	Memory Memory `json:"memory"`
-	Disk   Disk   `json:"disk"`
-	At     int64  `json:"at"`
+	CPU     CPU     `json:"cpu"`
+	GPU     GPU     `json:"gpu"`
+	Memory  Memory  `json:"memory"`
+	Disk    Disk    `json:"disk"`
+	Network Network `json:"network"`
+	At      int64   `json:"at"`
 }
 
 func (s Snapshot) clone() Snapshot {
 	s.CPU.History = slices.Clone(s.CPU.History)
 	s.GPU.History = slices.Clone(s.GPU.History)
 	s.Memory.History = slices.Clone(s.Memory.History)
+	s.Network.History = slices.Clone(s.Network.History)
 	return s
 }
