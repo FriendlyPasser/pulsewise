@@ -53,6 +53,41 @@
     return Math.round(bytes / 1e6) + " MB";
   }
 
+  // Network rates use decimal SI units, matching Activity Monitor's Network tab.
+  function rate(bytesPerSec) {
+    var v = Math.max(0, bytesPerSec || 0);
+    if (v >= 1e9) return (v / 1e9).toFixed(2) + " GB/s";
+    if (v >= 1e6) return (v / 1e6).toFixed(1) + " MB/s";
+    if (v >= 1e3) return (v / 1e3).toFixed(1) + " KB/s";
+    return Math.round(v) + " B/s";
+  }
+
+  function renderNetwork(net) {
+    net = net || {};
+    var hist = Array.isArray(net.history) ? net.history : [];
+    $("netDown").textContent = rate(net.down);
+    $("netUp").textContent = rate(net.up);
+
+    var n = 17, step = 288 / (n - 1);
+    var slice = hist.slice(-n);
+    var win = Array(Math.max(0, n - slice.length)).fill({ down: 0, up: 0 }).concat(slice);
+
+    var peak = win.reduce(function (m, p) {
+      return Math.max(m, p.down || 0, p.up || 0);
+    }, 0);
+    $("netPeak").textContent = rate(peak);
+
+    var scale = Math.max(peak, 1000);
+    var plot = function (key) {
+      return win.map(function (pt, idx) {
+        var y = 30 - Math.max(0, Math.min(1, (pt[key] || 0) / scale)) * 28;
+        return Math.round(idx * step) + "," + y.toFixed(1);
+      }).join(" ");
+    };
+    $("netDownSpark").setAttribute("points", plot("down"));
+    $("netUpSpark").setAttribute("points", plot("up"));
+  }
+
   function renderDisk(d) {
     var available = d.total > 0;
     var usage = available ? Math.max(0, Math.min(100, d.used / d.total * 100)) : 0;
@@ -151,6 +186,7 @@
     $("memSwap").textContent = size(m.swap);
 
     renderDisk(s.disk);
+    renderNetwork(s.network);
     fit();
   }
 

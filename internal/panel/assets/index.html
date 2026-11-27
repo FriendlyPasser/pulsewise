@@ -78,6 +78,27 @@
         <span>{{.DiskAvailable}} <span id="diskAvailable">–</span></span>
       </div>
     </div>
+
+    <div class="metric net">
+      <div class="head">
+        <span class="label">{{.Network}}</span>
+        <span class="net-rates">
+          <span class="net-rate down" title="{{.NetDown}}"><span class="arrow" aria-hidden="true">↓</span><span id="netDown">–</span></span>
+          <span class="net-rate up" title="{{.NetUp}}"><span class="arrow" aria-hidden="true">↑</span><span id="netUp">–</span></span>
+        </span>
+      </div>
+      <svg class="spark net-spark" width="288" height="32" viewBox="0 0 288 32" aria-hidden="true">
+        <polyline class="up" id="netUpSpark"/>
+        <polyline class="down" id="netDownSpark"/>
+      </svg>
+      <div class="net-details">
+        <span class="net-legend">
+          <span class="legend-item"><span class="dot down" aria-hidden="true"></span>{{.NetDown}}</span>
+          <span class="legend-item"><span class="dot up" aria-hidden="true"></span>{{.NetUp}}</span>
+        </span>
+        <span>{{.NetPeak}} <span id="netPeak">–</span></span>
+      </div>
+    </div>
   </section>
 
   <footer class="foot">

@@ -28,7 +28,7 @@ The signed and notarized app runs on macOS 13 or later and supports both Apple s
 
 The three bars show CPU, GPU and memory usage, refreshed once a second. Hover over the icon for percentages. To add disk usage or hide a metric, right-click the icon and open **Menu Bar Display**. Pulsewise remembers your selection.
 
-Click the icon to see all four metrics, including any hidden from the menu bar. The panel shows the last 17 samples of CPU and GPU usage, a breakdown of memory use, and used and available space on the startup disk. Press Esc to close it.
+Click the icon to open the full panel, including metrics hidden from the menu bar. The panel shows the last 17 samples of CPU and GPU usage, a breakdown of memory use, used and available space on the startup disk, and live network download and upload throughput. Press Esc to close it.
 
 ## Find what uses memory or disk space
 

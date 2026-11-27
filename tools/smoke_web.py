@@ -3,6 +3,7 @@
 from html.parser import HTMLParser
 
 import json
+import math
 import os
 import re
 import subprocess
@@ -67,8 +68,20 @@ def check(binary):
             assert first["at"] > 0
             assert first["memory"]["total"] > 0
             assert 0 <= first["cpu"]["usage"] <= 100
-            for key in ("cpu", "gpu", "memory"):
+            for key in ("cpu", "gpu", "memory", "network"):
                 assert 1 <= len(first[key]["history"]) <= 17
+
+            def check_network(state):
+                net = state["network"]
+                assert math.isfinite(net["down"]) and net["down"] >= 0
+                assert math.isfinite(net["up"]) and net["up"] >= 0
+                hist = net["history"]
+                assert 1 <= len(hist) <= 17
+                for pt in hist:
+                    assert math.isfinite(pt["down"]) and pt["down"] >= 0
+                    assert math.isfinite(pt["up"]) and pt["up"] >= 0
+                assert hist[-1]["down"] == net["down"]
+                assert hist[-1]["up"] == net["up"]
 
             def check_disk(state):
                 disk = state["disk"]
@@ -86,6 +99,7 @@ def check(binary):
                 assert abs(disk["available"] - available) < 256 * 1024 * 1024
 
             check_disk(first)
+            check_network(first)
 
             deadline = time.monotonic() + 4
             while time.monotonic() < deadline:
@@ -96,6 +110,8 @@ def check(binary):
             else:
                 raise AssertionError("the sampler did not publish a new snapshot")
             check_disk(latest)
+            check_network(latest)
+            assert len(latest["network"]["history"]) >= 2
 
             with request("/api/update") as response:
                 assert json.load(response)["state"] == "off"
@@ -114,6 +130,11 @@ def check(binary):
                         assert b'diskMeter' in asset
                         assert b'diskMetric' in asset
                         assert b'memMetric' in asset
+                        assert b'netDown' in asset
+                        assert b'netUp' in asset
+                        assert b'netDownSpark' in asset
+                        assert b'netUpSpark' in asset
+                        assert b'netPeak' in asset
                     if path in ("/memory.html", "/disk.html"):
                         assert asset.count(b'class="logo"') == 1
                         assert re.search(rb'<header class="brand detail-titlebar">.*?class="logo".*?>Pulsewise</span>\s*</header>', asset, re.S)

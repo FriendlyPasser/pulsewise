@@ -108,7 +108,8 @@ func TestStateContract(t *testing.T) {
 	want := stats.Snapshot{
 		CPU: stats.CPU{Usage: 32, History: []float64{21, 32}},
 		GPU: stats.GPU{Usage: -1}, Memory: stats.Memory{Total: 1024, Used: 512}, At: 1234,
-		Disk: stats.Disk{Total: 1000, Used: 750, Available: 250},
+		Disk:    stats.Disk{Total: 1000, Used: 750, Available: 250},
+		Network: stats.Network{Down: 1250000, Up: 42000, History: []stats.NetPoint{{Down: 1250000, Up: 42000}}},
 	}
 	h := Handler(&testHost{}, fixedSnapshots{snapshot: want}, nil, nil, LocaleZhCN)
 	rw := request(h, "GET", "/api/state", "")
@@ -200,6 +201,9 @@ func TestEmbeddedAssets(t *testing.T) {
 		if rw.Code != http.StatusOK || !strings.Contains(rw.Body.String(), text) {
 			t.Fatalf("asset %s: status %d", path, rw.Code)
 		}
+		if path == "/" && !strings.Contains(rw.Body.String(), "netDown") {
+			t.Fatalf("asset %s: missing netDown", path)
+		}
 	}
 }
 
@@ -267,20 +271,20 @@ func TestLocalizedPanelHTML(t *testing.T) {
 		{
 			name:    "simplified chinese",
 			loc:     LocaleZhCN,
-			want:    []string{`<html lang="zh-CN">`, "用户", "系统", "空闲", "内存", "硬盘", "系统磁盘", "容量暂不可用", "退出"},
-			notWant: []string{`<html lang="en">`, "Memory", "System Disk", "Capacity unavailable", "Quit"},
+			want:    []string{`<html lang="zh-CN">`, "用户", "系统", "空闲", "内存", "硬盘", "系统磁盘", "容量暂不可用", "网络", "下行", "上行", "峰值", "退出"},
+			notWant: []string{`<html lang="en">`, "Memory", "System Disk", "Capacity unavailable", ">Network<", `title="Down"`, `title="Up"`, "<span>Peak ", "Quit"},
 		},
 		{
 			name:    "english",
 			loc:     LocaleEn,
-			want:    []string{`<html lang="en">`, "User", "Sys", "Idle", "Memory", "Disk", "System Disk", "Capacity unavailable", "Quit"},
-			notWant: []string{`<html lang="zh-CN">`, "内存", "硬盘", "系统磁盘", "容量暂不可用", "退出"},
+			want:    []string{`<html lang="en">`, "User", "Sys", "Idle", "Memory", "Disk", "System Disk", "Capacity unavailable", "Network", "Down", "Up", "Peak", "Quit"},
+			notWant: []string{`<html lang="zh-CN">`, "内存", "硬盘", "系统磁盘", "容量暂不可用", "网络", "下行", "上行", "峰值", "退出"},
 		},
 		{
 			name:    "unknown locale defaults to english",
 			loc:     Locale("fr"),
-			want:    []string{`<html lang="en">`, "Memory", "System Disk", "Quit"},
-			notWant: []string{`<html lang="zh-CN">`, "内存", "退出"},
+			want:    []string{`<html lang="en">`, "Memory", "System Disk", "Network", "Down", "Up", "Peak", "Quit"},
+			notWant: []string{`<html lang="zh-CN">`, "内存", "网络", "退出"},
 		},
 	}
 
