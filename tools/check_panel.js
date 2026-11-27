@@ -226,23 +226,60 @@ async function checkOverviewPanel() {
   await flush();
   assert.equal(el("updateLabel").textContent, "Restarting…");
 
-  // Network rate formatting across B/s, KB/s, MB/s, GB/s and adaptive sparklines.
+  // Network rate formatting across B/s, KB/s, MB/s, GB/s and smooth adaptive curves.
   const parsePts = id => {
-    const raw = el(id).getAttribute("points");
-    assert(raw && !raw.includes("NaN"), id + " must not contain NaN: " + raw);
-    const pts = raw.split(" ").map(pair => {
-      const [x, y] = pair.split(",").map(Number);
-      assert(Number.isFinite(x) && Number.isFinite(y), "invalid point in " + id + ": " + pair);
-      return { x, y };
-    });
-    assert.equal(pts.length, 17, id + " must render 17 points");
+    const raw = el(id).getAttribute("d");
+    assert(raw && !raw.includes("NaN") && !raw.includes("Infinity"), id + " must be a finite path: " + raw);
+    const startMatch = raw.match(/^M(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
+    assert(startMatch, id + " must start with M command: " + raw);
+    let rest = raw.slice(startMatch[0].length);
+    const pts = [{ x: Number(startMatch[1]), y: Number(startMatch[2]) }];
+    const segs = [];
+    const segRe = /^C(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?) (-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?) (-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/;
+    while (rest.length > 0) {
+      const m = rest.match(segRe);
+      assert(m, id + " must consist only of cubic Bezier segments: " + rest);
+      const seg = {
+        c1x: Number(m[1]),
+        c1y: Number(m[2]),
+        c2x: Number(m[3]),
+        c2y: Number(m[4]),
+        x: Number(m[5]),
+        y: Number(m[6]),
+      };
+      for (const v of Object.values(seg)) assert(Number.isFinite(v), "non-finite coord in " + id);
+      const prev = pts[pts.length - 1];
+      const lo = Math.min(prev.y, seg.y) - 0.11;
+      const hi = Math.max(prev.y, seg.y) + 0.11;
+      assert(seg.c1y >= lo && seg.c1y <= hi, id + " c1y overshoots segment bounds: " + JSON.stringify({ prev, seg }));
+      assert(seg.c2y >= lo && seg.c2y <= hi, id + " c2y overshoots segment bounds: " + JSON.stringify({ prev, seg }));
+      segs.push(seg);
+      pts.push({ x: seg.x, y: seg.y });
+      rest = rest.slice(m[0].length);
+    }
+    assert.equal(pts.length, 17, id + " must render 17 anchor points");
+    pts.segs = segs;
     return pts;
+  };
+
+  const assertAreaClosed = (areaId, lineId, baseY) => {
+    const lineD = el(lineId).getAttribute("d");
+    const areaD = el(areaId).getAttribute("d");
+    assert(areaD && areaD.startsWith(lineD), areaId + " must trace " + lineId);
+    const suffix = "L288.0," + baseY.toFixed(1) + "L0.0," + baseY.toFixed(1) + "Z";
+    assert(areaD.endsWith(suffix), areaId + " must close at baseline " + suffix + ", got: " + areaD);
   };
 
   assert.equal(el("netDown").textContent, "1.5 MB/s");
   assert.equal(el("netUp").textContent, "42.0 KB/s");
   assert.equal(el("netPeak").textContent, "1.5 MB/s");
   assert.equal(parsePts("netDownSpark")[16].y, 2);
+  assertAreaClosed("netDownArea", "netDownSpark", 30);
+  assertAreaClosed("netUpArea", "netUpSpark", 30);
+  parsePts("cpuSpark");
+  assertAreaClosed("cpuArea", "cpuSpark", 26);
+  parsePts("gpuSpark");
+  assertAreaClosed("gpuArea", "gpuSpark", 26);
 
   network = { down: 512, up: 2.5e9, history: [{ down: 512, up: 2.5e9 }] };
   tick();
@@ -276,6 +313,25 @@ async function checkOverviewPanel() {
   assert.equal(downPts[16].y, 2);
   assert.equal(upPts[16].y, 16);
 
+  // Alternating high-low waveform must have horizontal tangents at interior crests/troughs.
+  network = {
+    down: 800000,
+    up: 35000,
+    history: Array.from({ length: 17 }, (_, i) => ({
+      down: i % 2 === 0 ? 800000 : 1300000,
+      up: 35000,
+    })),
+  };
+  tick();
+  await flush();
+  const sawPts = parsePts("netDownSpark");
+  for (let i = 1; i < 16; i++) {
+    assert.equal(sawPts.segs[i - 1].c2y, sawPts[i].y, "incoming tangent at crest/trough " + i + " must be horizontal");
+    assert.equal(sawPts.segs[i].c1y, sawPts[i].y, "outgoing tangent at crest/trough " + i + " must be horizontal");
+  }
+  assertAreaClosed("netDownArea", "netDownSpark", 30);
+  assertAreaClosed("netUpArea", "netUpSpark", 30);
+
   // All-zero and missing network data render a flat baseline without NaN.
   network = { down: 0, up: 0, history: [{ down: 0, up: 0 }] };
   tick();
@@ -285,6 +341,8 @@ async function checkOverviewPanel() {
   assert.equal(el("netPeak").textContent, "0 B/s");
   for (const pt of parsePts("netDownSpark")) assert.equal(pt.y, 30);
   for (const pt of parsePts("netUpSpark")) assert.equal(pt.y, 30);
+  assertAreaClosed("netDownArea", "netDownSpark", 30);
+  assertAreaClosed("netUpArea", "netUpSpark", 30);
 
   network = undefined;
   tick();
