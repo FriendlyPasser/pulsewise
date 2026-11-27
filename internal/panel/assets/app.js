@@ -169,7 +169,6 @@
     $("cpuValue").textContent = pct(c.usage);
     $("cpuUser").textContent = pct(c.user);
     $("cpuSys").textContent = pct(c.system);
-    $("cpuIdle").textContent = pct(c.idle);
     spark($("cpuSpark"), c.history || []);
 
     $("gpuValue").textContent = g.usage < 0 ? "–" : pct(g.usage);
