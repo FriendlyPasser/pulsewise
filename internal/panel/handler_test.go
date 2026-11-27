@@ -271,14 +271,14 @@ func TestLocalizedPanelHTML(t *testing.T) {
 		{
 			name:    "simplified chinese",
 			loc:     LocaleZhCN,
-			want:    []string{`<html lang="zh-CN">`, "用户", "系统", "空闲", "内存", "硬盘", "系统磁盘", "容量暂不可用", "网络", "下行", "上行", "峰值", "退出"},
-			notWant: []string{`<html lang="en">`, "Memory", "System Disk", "Capacity unavailable", ">Network<", `title="Down"`, `title="Up"`, "<span>Peak ", "Quit"},
+			want:    []string{`<html lang="zh-CN">`, "用户", "系统", "内存", "硬盘", "系统磁盘", "容量暂不可用", "网络", "下行", "上行", "峰值", "退出"},
+			notWant: []string{`<html lang="en">`, "空闲", "Memory", "System Disk", "Capacity unavailable", ">Network<", `title="Down"`, `title="Up"`, "<span>Peak ", "Quit"},
 		},
 		{
 			name:    "english",
 			loc:     LocaleEn,
-			want:    []string{`<html lang="en">`, "User", "Sys", "Idle", "Memory", "Disk", "System Disk", "Capacity unavailable", "Network", "Down", "Up", "Peak", "Quit"},
-			notWant: []string{`<html lang="zh-CN">`, "内存", "硬盘", "系统磁盘", "容量暂不可用", "网络", "下行", "上行", "峰值", "退出"},
+			want:    []string{`<html lang="en">`, "User", "Sys", "Memory", "Disk", "System Disk", "Capacity unavailable", "Network", "Down", "Up", "Peak", "Quit"},
+			notWant: []string{`<html lang="zh-CN">`, "Idle", "内存", "硬盘", "系统磁盘", "容量暂不可用", "网络", "下行", "上行", "峰值", "退出"},
 		},
 		{
 			name:    "unknown locale defaults to english",

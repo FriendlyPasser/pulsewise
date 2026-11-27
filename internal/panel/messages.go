@@ -5,7 +5,6 @@ type panelMessages struct {
 	Update                 string
 	CPUUser                string
 	CPUSys                 string
-	CPUIdle                string
 	GPUModel               string
 	GPUCores               string
 	Memory                 string
@@ -48,7 +47,6 @@ var messagesZhCN = panelMessages{
 	Update:                 "更新",
 	CPUUser:                "用户",
 	CPUSys:                 "系统",
-	CPUIdle:                "空闲",
 	GPUModel:               "型号",
 	GPUCores:               "核心",
 	Memory:                 "内存",
@@ -91,7 +89,6 @@ var messagesEn = panelMessages{
 	Update:                 "Update",
 	CPUUser:                "User",
 	CPUSys:                 "Sys",
-	CPUIdle:                "Idle",
 	GPUModel:               "Model",
 	GPUCores:               "Cores",
 	Memory:                 "Memory",
