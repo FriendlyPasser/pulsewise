@@ -30,7 +30,7 @@
         <span class="label">CPU</span>
         <span class="value" id="cpuValue">–</span>
       </div>
-      <svg class="spark" width="288" height="28" viewBox="0 0 288 28" aria-hidden="true"><polyline id="cpuSpark"/></svg>
+      <svg class="spark" viewBox="0 0 288 28" preserveAspectRatio="none" aria-hidden="true"><polyline id="cpuSpark"/></svg>
       <div class="chips wrap">
         <span class="chip"><span class="k">{{.CPUUser}}</span> <span id="cpuUser">–</span></span>
         <span class="chip"><span class="k">{{.CPUSys}}</span> <span id="cpuSys">–</span></span>
@@ -42,7 +42,7 @@
         <span class="label">GPU</span>
         <span class="value" id="gpuValue">–</span>
       </div>
-      <svg class="spark" width="288" height="28" viewBox="0 0 288 28" aria-hidden="true"><polyline id="gpuSpark"/></svg>
+      <svg class="spark" viewBox="0 0 288 28" preserveAspectRatio="none" aria-hidden="true"><polyline id="gpuSpark"/></svg>
       <div class="chips">
         <span class="chip"><span class="k">{{.GPUModel}}</span> <span id="gpuModel">–</span></span>
         <span class="chip"><span class="k">{{.GPUCores}}</span> <span id="gpuCores">–</span></span>
@@ -54,7 +54,7 @@
         <span class="label">{{.Memory}} <svg class="chevron" viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="M4.25 2.25 8 6 4.25 9.75" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
         <span class="value"><span id="memUsed">–</span> <span class="of">/ <span id="memTotal">–</span> GB</span></span>
       </div>
-      <svg class="area" width="288" height="40" viewBox="0 0 288 40" aria-hidden="true">
+      <svg class="area" viewBox="0 0 288 40" preserveAspectRatio="none" aria-hidden="true">
         <g id="memArea"><path class="compressed" id="memCompArea"/><path class="wired" id="memWiredArea"/><path class="app" id="memAppArea"/></g>
       </svg>
       <div class="chips wrap">
@@ -86,7 +86,7 @@
           <span class="net-rate up" title="{{.NetUp}}"><span class="arrow" aria-hidden="true">↑</span><span id="netUp">–</span></span>
         </span>
       </div>
-      <svg class="spark net-spark" width="288" height="32" viewBox="0 0 288 32" aria-hidden="true">
+      <svg class="spark net-spark" viewBox="0 0 288 32" preserveAspectRatio="none" aria-hidden="true">
         <polyline class="up" id="netUpSpark"/>
         <polyline class="down" id="netDownSpark"/>
       </svg>

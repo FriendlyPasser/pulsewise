@@ -75,7 +75,7 @@ body {
   padding: 14px 12px 12px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .brand { display: flex; align-items: center; gap: 8px; padding: 0 4px; }
@@ -123,15 +123,21 @@ body {
   flex-direction: column;
 }
 
+.panel .card { display: grid; grid-template-columns: 1fr 1fr; }
+
 .metric {
-  padding: 12px 14px;
+  grid-column: 1 / -1;
+  min-width: 0;
+  padding: 10px 12px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   border-bottom: 1px solid var(--card-edge);
 }
 .metric:last-child { border-bottom: 0; }
-.metric.cpu { --tone: var(--cpu); }
+.metric.cpu,
+.metric.gpu { grid-column: auto; }
+.metric.cpu { --tone: var(--cpu); border-right: 1px solid var(--card-edge); }
 .metric.gpu { --tone: var(--gpu); }
 .metric.mem {
   --tone: var(--mem);
@@ -155,19 +161,20 @@ body {
 .head { display: flex; justify-content: space-between; align-items: baseline; }
 .label { font-size: 14px; }
 .value {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--tone);
 }
 .value .of { font-size: 12px; font-weight: 400; color: var(--muted); }
 
-.spark { display: block; }
+.spark { display: block; width: 100%; height: 22px; }
 .spark polyline {
   fill: none;
   stroke: var(--tone);
   stroke-width: 1.6;
   stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
 }
 
 .chips {
@@ -185,6 +192,16 @@ body {
   white-space: nowrap;
 }
 .chip .k { color: var(--muted); }
+.panel .chips { flex-wrap: wrap; gap: 2px 8px; font-size: 11px; }
+.panel .chip {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+}
 
 /* memory's stacked area, App at the foot: it glides left a step a
    second, the newest sample coming in from the right */
@@ -194,6 +211,7 @@ body {
   background: var(--track);
   overflow: hidden;
 }
+.panel .area { width: 100%; height: 28px; }
 .area .app { fill: var(--mem); }
 .area .wired { fill: var(--wired); }
 .area .compressed { fill: var(--compressed); }
@@ -226,6 +244,7 @@ body {
 .net-rate.down { color: var(--net-down); }
 .net-rate.up { color: var(--net-up); }
 .net-rate .arrow { font-size: 11px; }
+.net-spark { height: 24px; }
 .net-spark polyline.down { stroke: var(--net-down); }
 .net-spark polyline.up { stroke: var(--net-up); }
 .net-details {
@@ -246,7 +265,7 @@ body {
 .foot { display: flex; justify-content: flex-end; padding: 0 4px; }
 
 .quit {
-  height: 28px;
+  height: 24px;
   padding: 0 12px;
   border: 0;
   border-radius: 7px;
