@@ -62,6 +62,41 @@
     return Math.round(v) + " B/s";
   }
 
+  // Fritsch–Butland monotone cubic Hermite spline: keeps horizontal crests at
+  // peaks/troughs and prevents overshoot above peaks or below the baseline.
+  function smoothLine(pts) {
+    var n = pts.length;
+    if (!n) return "";
+    if (n === 1) return "M" + pts[0][0].toFixed(1) + "," + pts[0][1].toFixed(1);
+    var d = [], i;
+    for (i = 0; i < n - 1; i++) {
+      var dx = pts[i + 1][0] - pts[i][0];
+      d.push(dx === 0 ? 0 : (pts[i + 1][1] - pts[i][1]) / dx);
+    }
+    var m = new Array(n);
+    m[0] = d[0];
+    m[n - 1] = d[n - 2];
+    for (i = 1; i < n - 1; i++) {
+      m[i] = d[i - 1] * d[i] <= 0 ? 0 : (2 * d[i - 1] * d[i]) / (d[i - 1] + d[i]);
+    }
+    var path = "M" + pts[0][0].toFixed(1) + "," + pts[0][1].toFixed(1);
+    for (i = 0; i < n - 1; i++) {
+      var x0 = pts[i][0], y0 = pts[i][1], x1 = pts[i + 1][0], y1 = pts[i + 1][1];
+      var dx3 = (x1 - x0) / 3;
+      path += "C" + (x0 + dx3).toFixed(1) + "," + (y0 + m[i] * dx3).toFixed(1) +
+        " " + (x1 - dx3).toFixed(1) + "," + (y1 - m[i + 1] * dx3).toFixed(1) +
+        " " + x1.toFixed(1) + "," + y1.toFixed(1);
+    }
+    return path;
+  }
+
+  function smoothArea(linePath, pts, baseY) {
+    if (!linePath || pts.length < 2) return "";
+    return linePath +
+      "L" + pts[pts.length - 1][0].toFixed(1) + "," + baseY.toFixed(1) +
+      "L" + pts[0][0].toFixed(1) + "," + baseY.toFixed(1) + "Z";
+  }
+
   function renderNetwork(net) {
     net = net || {};
     var hist = Array.isArray(net.history) ? net.history : [];
@@ -78,14 +113,16 @@
     $("netPeak").textContent = rate(peak);
 
     var scale = Math.max(peak, 1000);
-    var plot = function (key) {
-      return win.map(function (pt, idx) {
-        var y = 30 - Math.max(0, Math.min(1, (pt[key] || 0) / scale)) * 28;
-        return Math.round(idx * step) + "," + y.toFixed(1);
-      }).join(" ");
+    var plot = function (lineEl, areaEl, key) {
+      var pts = win.map(function (pt, idx) {
+        return [idx * step, 30 - Math.max(0, Math.min(1, (pt[key] || 0) / scale)) * 28];
+      });
+      var d = smoothLine(pts);
+      lineEl.setAttribute("d", d);
+      areaEl.setAttribute("d", smoothArea(d, pts, 30));
     };
-    $("netDownSpark").setAttribute("points", plot("down"));
-    $("netUpSpark").setAttribute("points", plot("up"));
+    plot($("netDownSpark"), $("netDownArea"), "down");
+    plot($("netUpSpark"), $("netUpArea"), "up");
   }
 
   function renderDisk(d) {
@@ -110,14 +147,15 @@
 
   // the design's sparkline: 288×28, its points spaced evenly, a level of
   // 100% near the top and 0% near the foot
-  function spark(el, history) {
+  function spark(lineEl, areaEl, history) {
     var n = 17, step = 288 / (n - 1);
     var pad = Array(Math.max(0, n - history.length)).fill(history[0] || 0);
-    var points = pad.concat(history.slice(-n)).map(function (v, i) {
-      var y = 26 - Math.max(0, Math.min(100, v)) * 0.24;
-      return Math.round(i * step) + "," + y.toFixed(1);
+    var pts = pad.concat(history.slice(-n)).map(function (v, i) {
+      return [i * step, 26 - Math.max(0, Math.min(100, v)) * 0.24];
     });
-    el.setAttribute("points", points.join(" "));
+    var d = smoothLine(pts);
+    lineEl.setAttribute("d", d);
+    areaEl.setAttribute("d", smoothArea(d, pts, 26));
   }
 
   // memory's stacked area, 288×40 with 0 at the foot and the total at the
@@ -169,12 +207,12 @@
     $("cpuValue").textContent = pct(c.usage);
     $("cpuUser").textContent = pct(c.user);
     $("cpuSys").textContent = pct(c.system);
-    spark($("cpuSpark"), c.history || []);
+    spark($("cpuSpark"), $("cpuArea"), c.history || []);
 
     $("gpuValue").textContent = g.usage < 0 ? "–" : pct(g.usage);
     $("gpuModel").textContent = g.model || "–";
     $("gpuCores").textContent = g.cores > 0 ? String(g.cores) : "–";
-    spark($("gpuSpark"), g.history || []);
+    spark($("gpuSpark"), $("gpuArea"), g.history || []);
 
     $("memUsed").textContent = (m.used / GB).toFixed(1);
     $("memTotal").textContent = String(Math.round(m.total / GB));

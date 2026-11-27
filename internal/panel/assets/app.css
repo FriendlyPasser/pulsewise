@@ -169,13 +169,21 @@ body {
 .value .of { font-size: 12px; font-weight: 400; color: var(--muted); }
 
 .spark { display: block; width: 100%; height: 22px; }
-.spark polyline {
+.spark path.line {
   fill: none;
   stroke: var(--tone);
   stroke-width: 1.6;
+  stroke-linecap: round;
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
+  shape-rendering: geometricPrecision;
 }
+.spark path.area-fill {
+  stroke: none;
+  shape-rendering: geometricPrecision;
+}
+.spark .grad-top { stop-color: var(--tone); stop-opacity: 0.16; }
+.spark .grad-bottom { stop-color: var(--tone); stop-opacity: 0; }
 
 .chips {
   display: flex;
@@ -244,9 +252,13 @@ body {
 .net-rate.down { color: var(--net-down); }
 .net-rate.up { color: var(--net-up); }
 .net-rate .arrow { font-size: 11px; }
-.net-spark { height: 24px; }
-.net-spark polyline.down { stroke: var(--net-down); }
-.net-spark polyline.up { stroke: var(--net-up); }
+.net-spark { height: 28px; }
+.net-spark path.line.down { stroke: var(--net-down); }
+.net-spark path.line.up { stroke: var(--net-up); }
+.net-spark .grad-top.down { stop-color: var(--net-down); stop-opacity: 0.16; }
+.net-spark .grad-bottom.down { stop-color: var(--net-down); stop-opacity: 0; }
+.net-spark .grad-top.up { stop-color: var(--net-up); stop-opacity: 0.12; }
+.net-spark .grad-bottom.up { stop-color: var(--net-up); stop-opacity: 0; }
 .net-details {
   display: flex;
   justify-content: space-between;

@@ -30,7 +30,16 @@
         <span class="label">CPU</span>
         <span class="value" id="cpuValue">–</span>
       </div>
-      <svg class="spark" viewBox="0 0 288 28" preserveAspectRatio="none" aria-hidden="true"><polyline id="cpuSpark"/></svg>
+      <svg class="spark" viewBox="0 0 288 28" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="cpuGrad" gradientUnits="userSpaceOnUse" x1="0" y1="2" x2="0" y2="26">
+            <stop offset="0%" class="grad-top"/>
+            <stop offset="100%" class="grad-bottom"/>
+          </linearGradient>
+        </defs>
+        <path class="area-fill" id="cpuArea" fill="url(#cpuGrad)"/>
+        <path class="line" id="cpuSpark"/>
+      </svg>
       <div class="chips wrap">
         <span class="chip"><span class="k">{{.CPUUser}}</span> <span id="cpuUser">–</span></span>
         <span class="chip"><span class="k">{{.CPUSys}}</span> <span id="cpuSys">–</span></span>
@@ -42,7 +51,16 @@
         <span class="label">GPU</span>
         <span class="value" id="gpuValue">–</span>
       </div>
-      <svg class="spark" viewBox="0 0 288 28" preserveAspectRatio="none" aria-hidden="true"><polyline id="gpuSpark"/></svg>
+      <svg class="spark" viewBox="0 0 288 28" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="gpuGrad" gradientUnits="userSpaceOnUse" x1="0" y1="2" x2="0" y2="26">
+            <stop offset="0%" class="grad-top"/>
+            <stop offset="100%" class="grad-bottom"/>
+          </linearGradient>
+        </defs>
+        <path class="area-fill" id="gpuArea" fill="url(#gpuGrad)"/>
+        <path class="line" id="gpuSpark"/>
+      </svg>
       <div class="chips">
         <span class="chip"><span class="k">{{.GPUModel}}</span> <span id="gpuModel">–</span></span>
         <span class="chip"><span class="k">{{.GPUCores}}</span> <span id="gpuCores">–</span></span>
@@ -87,8 +105,20 @@
         </span>
       </div>
       <svg class="spark net-spark" viewBox="0 0 288 32" preserveAspectRatio="none" aria-hidden="true">
-        <polyline class="up" id="netUpSpark"/>
-        <polyline class="down" id="netDownSpark"/>
+        <defs>
+          <linearGradient id="netDownGrad" gradientUnits="userSpaceOnUse" x1="0" y1="2" x2="0" y2="30">
+            <stop offset="0%" class="grad-top down"/>
+            <stop offset="100%" class="grad-bottom down"/>
+          </linearGradient>
+          <linearGradient id="netUpGrad" gradientUnits="userSpaceOnUse" x1="0" y1="2" x2="0" y2="30">
+            <stop offset="0%" class="grad-top up"/>
+            <stop offset="100%" class="grad-bottom up"/>
+          </linearGradient>
+        </defs>
+        <path class="area-fill up" id="netUpArea" fill="url(#netUpGrad)"/>
+        <path class="area-fill down" id="netDownArea" fill="url(#netDownGrad)"/>
+        <path class="line up" id="netUpSpark"/>
+        <path class="line down" id="netDownSpark"/>
       </svg>
       <div class="net-details">
         <span class="net-legend">
